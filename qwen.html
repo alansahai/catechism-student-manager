@@ -1,0 +1,2301 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Catechism Student Management</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- add html2pdf (includes html2canvas + jsPDF) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #3498db;
+            --secondary: #2c3e50;
+            --success: #27ae60;
+            --warning: #f39c12;
+            --danger: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --gray: #95a5a6;
+            --border-radius: 8px;
+            --box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --transition: all 0.3s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: #f5f7fa;
+            color: var(--dark);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--secondary), var(--primary));
+            color: white;
+            padding: 20px 0;
+            box-shadow: var(--box-shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo i {
+            font-size: 2rem;
+        }
+
+        .logo h1 {
+            font-size: 1.8rem;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 20px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: var(--border-radius);
+            transition: var(--transition);
+        }
+
+        nav a:hover,
+        nav a.active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .main-content {
+            margin-top: 30px;
+        }
+
+        .card {
+            background: white;
+            border-radius: var(--border-radius);
+            box-shadow: var(--box-shadow);
+            padding: 25px;
+            margin-bottom: 25px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--light);
+        }
+
+        .card-title {
+            font-size: 1.5rem;
+            color: var(--secondary);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            font-weight: 600;
+            transition: var(--transition);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-success {
+            background-color: var(--success);
+            color: white;
+        }
+
+        .btn-warning {
+            background-color: var(--warning);
+            color: white;
+        }
+
+        .btn-danger {
+            background-color: var(--danger);
+            color: white;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--primary);
+            color: var(--primary);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+
+        .btn-sm {
+            padding: 5px 10px;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        input,
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            font-size: 1rem;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.2);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th,
+        td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        th {
+            background-color: var(--light);
+            font-weight: 600;
+        }
+
+        tr:hover {
+            background-color: rgba(52, 152, 219, 0.05);
+        }
+
+        .status-badge {
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .status-present {
+            background-color: rgba(39, 174, 96, 0.2);
+            color: var(--success);
+        }
+
+        .status-absent {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: var(--danger);
+        }
+
+        .status-late {
+            background-color: rgba(243, 156, 18, 0.2);
+            color: var(--warning);
+        }
+
+        .status-excused {
+            background-color: rgba(149, 165, 166, 0.2);
+            color: var(--gray);
+        }
+
+        .status-noclass {
+            background-color: rgba(44, 62, 80, 0.2);
+            color: var(--dark);
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: var(--border-radius);
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid var(--light);
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--dark);
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--light);
+            margin-bottom: 20px;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab.active {
+            border-bottom: 3px solid var(--primary);
+            color: var(--primary);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .search-bar {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-bar input {
+            flex: 1;
+        }
+
+        .chart-container {
+            height: 300px;
+            margin: 20px 0;
+        }
+
+        .report-section {
+            margin-bottom: 30px;
+        }
+
+        .report-section h3 {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--light);
+        }
+
+        .print-only {
+            display: none;
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+
+            .print-only {
+                display: block;
+            }
+
+            body {
+                background: white;
+                padding: 0;
+            }
+
+            .container {
+                max-width: 100%;
+                padding: 0;
+            }
+
+            .card {
+                box-shadow: none;
+                border: 1px solid #ddd;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header-content {
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            nav ul {
+                flex-wrap: wrap;
+                justify-content: center;
+            }
+
+            .grid {
+                grid-template-columns: 1fr;
+            }
+
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 15px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-church"></i>
+                    <h1>Catechism Student Manager</h1>
+                </div>
+                <nav>
+                    <ul>
+                        <li><a href="#" class="active" data-tab="dashboard">Dashboard</a></li>
+                        <li><a href="#" data-tab="students">Students</a></li>
+                        <li><a href="#" data-tab="attendance">Attendance</a></li>
+                        <li><a href="#" data-tab="assessments">Assessments</a></li>
+                        <li><a href="#" data-tab="reports">Reports</a></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="main-content">
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Dashboard Overview</h2>
+                    </div>
+                    <div class="grid">
+                        <div class="card">
+                            <h3>Total Students</h3>
+                            <p class="stat-number" id="total-students">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Classes Held</h3>
+                            <p class="stat-number" id="classes-held">0</p>
+                        </div>
+                        <div class="card">
+                            <h3>Avg Attendance</h3>
+                            <p class="stat-number" id="avg-attendance">0%</p>
+                        </div>
+                        <div class="card">
+                            <h3>Upcoming Sessions</h3>
+                            <p class="stat-number" id="upcoming-sessions">0</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Recent Activity</h2>
+                    </div>
+                    <div id="recent-activity">
+                        <p>No recent activity</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Students Tab -->
+            <div id="students" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Student Management</h2>
+                        <div>
+                            <button class="btn btn-primary" id="add-student-btn" data-modal="student-modal">
+                                <i class="fas fa-plus"></i> Add Student
+                            </button>
+                            <button class="btn btn-outline" id="import-students-btn" data-modal="import-modal">
+                                <i class="fas fa-file-import"></i> Import CSV
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="search-bar">
+                        <input type="text" id="student-search" placeholder="Search students...">
+                        <button class="btn btn-primary"><i class="fas fa-search"></i></button>
+                    </div>
+
+                    <table id="students-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Name</th>
+                                <th>Guardian</th>
+                                <th>Contact</th>
+                                <th>Class</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Student rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Attendance Tab -->
+            <div id="attendance" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Attendance Management</h2>
+                        <button class="btn btn-primary" id="new-session-btn" data-modal="session-modal">
+                            <i class="fas fa-calendar-plus"></i> New Session
+                        </button>
+                    </div>
+
+                    <div class="tabs">
+                        <div class="tab active" data-tab-target="#session-list">Sessions</div>
+                        <div class="tab" data-tab-target="#take-attendance">Take Attendance</div>
+                    </div>
+
+                    <div id="session-list" class="tab-content active">
+                        <table id="sessions-table">
+                            <thead>
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Status</th>
+                                    <th>Reason</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Session rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="take-attendance" class="tab-content">
+                        <div class="form-group">
+                            <label for="session-date">Select Session Date</label>
+                            <select id="session-date">
+                                <option value="">-- Select a session --</option>
+                                <!-- Options will be populated here -->
+                            </select>
+                        </div>
+
+                        <div id="attendance-form-container">
+                            <p>Select a session to take attendance</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Assessments Tab -->
+            <div id="assessments" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Assessment Management</h2>
+                        <button class="btn btn-primary" id="new-assessment-btn" data-modal="assessment-modal">
+                            <i class="fas fa-plus-circle"></i> New Assessment
+                        </button>
+                    </div>
+
+                    <table id="assessments-table">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Date</th>
+                                <th>Total Marks</th>
+                                <th>Students Recorded</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Assessment rows will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports" class="tab-content">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Student Reports</h2>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="report-student">Select Student</label>
+                        <select id="report-student">
+                            <option value="">-- Select a student --</option>
+                            <!-- Options will be populated here -->
+                        </select>
+                    </div>
+
+                    <div id="report-content">
+                        <p>Select a student to generate a report</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <div id="student-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="student-modal-title">Add Student</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="student-form">
+                    <input type="hidden" id="student-id">
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="student-first-name">First Name *</label>
+                            <input type="text" id="student-first-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="student-last-name">Last Name *</label>
+                            <input type="text" id="student-last-name" required>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-id-input">Student ID *</label>
+                        <input type="text" id="student-id-input" required>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="student-dob">Date of Birth</label>
+                            <input type="date" id="student-dob">
+                        </div>
+                        <div class="form-group">
+                            <label for="student-class">Class/Section</label>
+                            <input type="text" id="student-class">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-guardian">Guardian Name *</label>
+                        <input type="text" id="student-guardian" required>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="student-phone">Phone</label>
+                            <input type="tel" id="student-phone">
+                        </div>
+                        <div class="form-group">
+                            <label for="student-email">Email</label>
+                            <input type="email" id="student-email">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="student-notes">Notes</label>
+                        <textarea id="student-notes" rows="3"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-btn">Cancel</button>
+                <button class="btn btn-primary" id="save-student-btn">Save Student</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="session-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Session</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="session-form">
+                    <div class="form-group">
+                        <label for="session-date-input">Session Date *</label>
+                        <input type="date" id="session-date-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="session-status">Session Status *</label>
+                        <select id="session-status" required>
+                            <option value="Available">Class Available</option>
+                            <option value="NoClass">No Class</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="noclass-reason-group" style="display: none;">
+                        <label for="noclass-reason">No Class Reason</label>
+                        <select id="noclass-reason">
+                            <option value="holiday">Holiday</option>
+                            <option value="first-week">First Week - No Class</option>
+                            <option value="canceled">Canceled</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-btn">Cancel</button>
+                <button class="btn btn-primary" id="save-session-btn">Create Session</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="assessment-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Create New Assessment</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="assessment-form">
+                    <div class="form-group">
+                        <label for="assessment-name">Assessment Name *</label>
+                        <input type="text" id="assessment-name" required>
+                    </div>
+                    <div class="grid">
+                        <div class="form-group">
+                            <label for="assessment-date">Date *</label>
+                            <input type="date" id="assessment-date" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="assessment-total-marks">Total Marks *</label>
+                            <input type="number" id="assessment-total-marks" min="1" required>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-btn">Cancel</button>
+                <button class="btn btn-primary" id="save-assessment-btn">Create Assessment</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="scores-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Record Scores</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="scores-form-container">
+                    <!-- Scores form will be populated here -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-btn">Cancel</button>
+                <button class="btn btn-primary" id="save-scores-btn">Save Scores</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="import-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Import Students from CSV</h3>
+                <button class="close-btn">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="csv-file">Upload CSV File</label>
+                    <input type="file" id="csv-file" accept=".csv">
+                </div>
+                <div id="preview-container">
+                    <p>Preview will appear here after selecting a file</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline close-btn">Cancel</button>
+                <button class="btn btn-success" id="import-csv-btn" disabled>Import Students</button>
+            </div>
+        </div>
+    </div>
+    <!-- View Student Details Modal -->
+    <div id="student-view-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Student Details</h3>
+                <button class="close-btn" id="close-view-modal">&times;</button>
+            </div>
+            <div class="modal-body" id="student-details-content"></div>
+        </div>
+    </div>
+
+
+    <script>
+        // Data Models
+        const DATA_MODELS = {
+            students: [],
+            sessions: [],
+            attendance: [],
+            assessments: [],
+            scores: []
+        };
+
+        // DOM Elements
+        const tabs = document.querySelectorAll('[data-tab]');
+        const tabContents = document.querySelectorAll('.tab-content');
+        // const modalTriggers = document.querySelectorAll('[data-modal]');
+        const modals = document.querySelectorAll('.modal');
+        const closeButtons = document.querySelectorAll('.close-btn');
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', function () {
+            loadData();
+            renderDashboard();
+            renderStudentsTable();
+            renderSessionsTable();
+            renderAssessmentsTable();
+            setupEventListeners();
+            updateReportDropdown();
+        });
+
+        // Navigation
+        tabs.forEach(tab => {
+            tab.addEventListener('click', function (e) {
+                e.preventDefault();
+                const targetTab = this.getAttribute('data-tab');
+
+                // Update active tab in navigation
+                document.querySelectorAll('[data-tab]').forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+
+                // Show corresponding content
+                tabContents.forEach(content => {
+                    content.classList.remove('active');
+                    if (content.id === targetTab) {
+                        content.classList.add('active');
+                    }
+                });
+
+                // Special handling for reports tab
+                if (targetTab === 'reports') {
+                    renderSessionsTable();
+                    renderAttendanceForm();
+                }
+            });
+        });
+
+        // Modal triggers: any element with a data-modal attribute
+        const modalTriggers = document.querySelectorAll('[data-modal]');
+
+        modalTriggers.forEach(trigger => {
+            trigger.addEventListener('click', function (e) {
+                e.preventDefault();
+                const modalId = this.dataset.modal;
+                const modalEl = document.getElementById(modalId);
+                if (!modalEl) return console.warn('Modal not found:', modalId);
+
+                modalEl.style.display = 'flex';
+
+                // Special handling for different modals (keep previous logic)
+                if (modalId === 'session-modal') {
+                    const sessionDateInput = document.getElementById('session-date-input');
+                    if (sessionDateInput) sessionDateInput.valueAsDate = new Date();
+                    // hide noclass reason by default when opening
+                    const reasonGroup = document.getElementById('noclass-reason-group');
+                    if (reasonGroup) reasonGroup.style.display = 'none';
+                } else if (modalId === 'student-modal') {
+                    const studentModalTitle = document.getElementById('student-modal-title');
+                    if (studentModalTitle) studentModalTitle.textContent = 'Add Student';
+                    const studentForm = document.getElementById('student-form');
+                    if (studentForm) studentForm.reset();
+                    const studentIdHidden = document.getElementById('student-id');
+                    if (studentIdHidden) studentIdHidden.value = '';
+                } else if (modalId === 'import-modal') {
+                    // reset preview & file input
+                    const csvFile = document.getElementById('csv-file');
+                    if (csvFile) csvFile.value = '';
+                    const preview = document.getElementById('preview-container');
+                    if (preview) preview.innerHTML = '<p>Preview will appear here after selecting a file</p>';
+                    const importBtn = document.getElementById('import-csv-btn');
+                    if (importBtn) importBtn.disabled = true;
+                }
+            });
+        });
+
+
+        closeButtons.forEach(button => {
+            button.addEventListener('click', function () {
+                this.closest('.modal').style.display = 'none';
+            });
+        });
+
+        window.addEventListener('click', function (e) {
+            modals.forEach(modal => {
+                if (e.target === modal) {
+                    modal.style.display = 'none';
+                }
+            });
+        });
+
+        // Event Listeners
+        function setupEventListeners() {
+            // Session status change
+            const sessionStatus = document.getElementById('session-status');
+            if (sessionStatus) {
+                sessionStatus.addEventListener('change', function () {
+                    const reasonGroup = document.getElementById('noclass-reason-group');
+                    reasonGroup.style.display = this.value === 'NoClass' ? 'block' : 'none';
+                });
+            }
+
+            // Save student
+            const saveStudentBtn = document.getElementById('save-student-btn');
+            if (saveStudentBtn) {
+                saveStudentBtn.addEventListener('click', saveStudent);
+            }
+
+            // Save session
+            const saveSessionBtn = document.getElementById('save-session-btn');
+            if (saveSessionBtn) {
+                saveSessionBtn.addEventListener('click', saveSession);
+            }
+
+            // Save assessment
+            const saveAssessmentBtn = document.getElementById('save-assessment-btn');
+            if (saveAssessmentBtn) {
+                saveAssessmentBtn.addEventListener('click', saveAssessment);
+            }
+
+            // Save scores
+            const saveScoresBtn = document.getElementById('save-scores-btn');
+            if (saveScoresBtn) {
+                saveScoresBtn.addEventListener('click', saveScores);
+            }
+
+            // Import CSV
+            const csvFile = document.getElementById('csv-file');
+            if (csvFile) {
+                csvFile.addEventListener('change', handleCSVUpload);
+            }
+
+            const importCsvBtn = document.getElementById('import-csv-btn');
+            if (importCsvBtn) {
+                importCsvBtn.addEventListener('click', importStudentsFromCSV);
+            }
+
+            // New session button
+            const newSessionBtn = document.getElementById('new-session-btn');
+            if (newSessionBtn) {
+                newSessionBtn.addEventListener('click', function () {
+                    const sessionForm = document.getElementById('session-form');
+                    if (sessionForm) {
+                        sessionForm.reset();
+                    }
+                    const reasonGroup = document.getElementById('noclass-reason-group');
+                    if (reasonGroup) {
+                        reasonGroup.style.display = 'none';
+                    }
+                });
+            }
+
+            // Tabs inside attendance section
+            document.querySelectorAll('[data-tab-target]').forEach(tab => {
+                tab.addEventListener('click', function () {
+                    const target = this.getAttribute('data-tab-target');
+
+                    // Update active tab
+                    document.querySelectorAll('[data-tab-target]').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // Show corresponding content
+                    document.querySelectorAll('#attendance .tab-content').forEach(content => {
+                        content.classList.remove('active');
+                        if (`#${content.id}` === target) {
+                            content.classList.add('active');
+                        }
+                    });
+                });
+            });
+
+            // Report student selection
+            const reportStudent = document.getElementById('report-student');
+            if (reportStudent) {
+                reportStudent.addEventListener('change', function () {
+                    const studentId = this.value;
+                    if (studentId) {
+                        generateStudentReport(studentId);
+                    } else {
+                        document.getElementById('report-content').innerHTML = '<p>Select a student to generate a report</p>';
+                    }
+                });
+            }
+
+            // Session date selection for attendance
+            const sessionDate = document.getElementById('session-date');
+            if (sessionDate) {
+                sessionDate.addEventListener('change', function () {
+                    const sessionId = this.value;
+                    if (sessionId) {
+                        renderAttendanceForm(sessionId);
+                    } else {
+                        document.getElementById('attendance-form-container').innerHTML = '<p>Select a session to take attendance</p>';
+                    }
+                });
+            }
+        }
+
+        // Data Management Functions
+        function loadData() {
+            const savedData = localStorage.getItem('catechismData');
+            if (savedData) {
+                const parsedData = JSON.parse(savedData);
+                Object.assign(DATA_MODELS, parsedData);
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('catechismData', JSON.stringify(DATA_MODELS));
+        }
+
+        // Student Management
+        function renderStudentsTable() {
+            const tbody = document.querySelector('#students-table tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            DATA_MODELS.students.forEach(student => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td><a href="#" class="student-link" onclick="viewStudentDetails('${student.studentId}')">${student.studentId}</a></td>
+                    <td>${student.firstName} ${student.lastName}</td>
+                    <td>${student.guardian}</td>
+                    <td>${student.phone || student.email || 'N/A'}</td>
+                    <td>${student.class || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm edit-student" data-id="${student.studentId}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm delete-student" data-id="${student.studentId}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Add event listeners to action buttons
+            document.querySelectorAll('.edit-student').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const studentId = this.getAttribute('data-id');
+                    editStudent(studentId);
+                });
+            });
+
+            document.querySelectorAll('.delete-student').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const studentId = this.getAttribute('data-id');
+                    deleteStudent(studentId);
+                });
+            });
+        }
+
+        function saveStudent() {
+            const studentIdInput = document.getElementById('student-id-input').value.trim();
+            const firstName = document.getElementById('student-first-name').value.trim();
+            const lastName = document.getElementById('student-last-name').value.trim();
+            const dob = document.getElementById('student-dob').value;
+            const guardian = document.getElementById('student-guardian').value.trim();
+            const phone = document.getElementById('student-phone').value.trim();
+            const email = document.getElementById('student-email').value.trim();
+            const studentClass = document.getElementById('student-class').value.trim();
+            const notes = document.getElementById('student-notes').value.trim();
+            const id = document.getElementById('student-id').value;
+
+            // Basic validation
+            if (!firstName || !lastName || !studentIdInput || !guardian) {
+                alert('Please fill in all required fields');
+                return;
+            }
+
+            // Check for duplicate student ID
+            if (!id && DATA_MODELS.students.some(s => s.studentId === studentIdInput)) {
+                alert('A student with this ID already exists');
+                return;
+            }
+
+            const student = {
+                studentId: studentIdInput,
+                firstName,
+                lastName,
+                dob,
+                guardian,
+                phone,
+                email,
+                class: studentClass,
+                notes
+            };
+
+            if (id) {
+                // Update existing student
+                const index = DATA_MODELS.students.findIndex(s => s.studentId === id);
+                if (index !== -1) {
+                    DATA_MODELS.students[index] = student;
+                }
+            } else {
+                // Add new student
+                DATA_MODELS.students.push(student);
+            }
+
+            saveData();
+            renderStudentsTable();
+            document.getElementById('student-modal').style.display = 'none';
+        }
+
+        function editStudent(studentId) {
+            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+            if (student) {
+                document.getElementById('student-id').value = student.studentId;
+                document.getElementById('student-id-input').value = student.studentId;
+                document.getElementById('student-first-name').value = student.firstName;
+                document.getElementById('student-last-name').value = student.lastName;
+                document.getElementById('student-dob').value = student.dob || '';
+                document.getElementById('student-guardian').value = student.guardian;
+                document.getElementById('student-phone').value = student.phone || '';
+                document.getElementById('student-email').value = student.email || '';
+                document.getElementById('student-class').value = student.class || '';
+                document.getElementById('student-notes').value = student.notes || '';
+
+                document.getElementById('student-modal-title').textContent = 'Edit Student';
+                document.getElementById('student-modal').style.display = 'flex';
+            }
+        }
+
+        function deleteStudent(studentId) {
+            if (confirm('Are you sure you want to delete this student?')) {
+                DATA_MODELS.students = DATA_MODELS.students.filter(s => s.studentId !== studentId);
+                saveData();
+                renderStudentsTable();
+            }
+        }
+
+        // View Student Details Popup
+        function viewStudentDetails(studentId) {
+            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+            if (!student) return alert('Student not found.');
+
+            const detailsHtml = `
+    <p><strong>Student ID:</strong> ${student.studentId}</p>
+    <p><strong>Name:</strong> ${student.firstName} ${student.lastName}</p>
+    <p><strong>Date of Birth:</strong> ${student.dob ? formatDate(student.dob) : 'N/A'}</p>
+    <p><strong>Guardian:</strong> ${student.guardian}</p>
+    <p><strong>Contact:</strong> ${student.phone || 'N/A'}</p>
+    <p><strong>Email:</strong> ${student.email || 'N/A'}</p>
+    <p><strong>Class:</strong> ${student.class || 'N/A'}</p>
+    <p><strong>Notes:</strong> ${student.notes || 'None'}</p>
+  `;
+
+            const modal = document.getElementById('student-view-modal');
+            const detailsContainer = document.getElementById('student-details-content');
+            detailsContainer.innerHTML = detailsHtml;
+            modal.style.display = 'flex';
+        }
+
+        document.getElementById('close-view-modal').addEventListener('click', () => {
+            document.getElementById('student-view-modal').style.display = 'none';
+        });
+
+        // Session Management
+        function renderSessionsTable() {
+            const tbody = document.querySelector('#sessions-table tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            // Sort sessions by date (newest first)
+            const sortedSessions = [...DATA_MODELS.sessions].sort((a, b) =>
+                new Date(b.date) - new Date(a.date)
+            );
+
+            // Debug: show sessions in console
+            console.log('[renderSessionsTable] sessions (sorted):', sortedSessions);
+
+            sortedSessions.forEach(session => {
+                const row = document.createElement('tr');
+                const statusBadge = session.status === 'Available'
+                    ? `<span class="status-badge status-present">Class Available</span>`
+                    : `<span class="status-badge status-noclass">No Class</span>`;
+
+                const reason = session.noClassReason || 'N/A';
+
+                row.innerHTML = `
+            <td>${formatDate(session.date)}</td>
+            <td>${statusBadge}</td>
+            <td>${reason}</td>
+            <td>
+                ${session.status === 'Available' ? `
+                    <button class="btn btn-primary btn-sm take-attendance" data-id="${session.id}">
+                        <i class="fas fa-check-circle"></i> Take Attendance
+                    </button>
+                ` : ''}
+                <button class="btn btn-danger btn-sm delete-session" data-id="${session.id}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+                tbody.appendChild(row);
+            });
+
+            // Populate session dropdown for attendance using the same sortedSessions array
+            const sessionSelect = document.getElementById('session-date');
+            if (sessionSelect) {
+                sessionSelect.innerHTML = '<option value="">-- Select a session --</option>';
+
+                sortedSessions
+                    .filter(s => s.status === 'Available')
+                    .forEach(session => {
+                        const option = document.createElement('option');
+                        option.value = session.id;
+                        // show date + short hint so user easily picks right session
+                        option.textContent = `${formatDate(session.date)} (${session.status})`;
+                        sessionSelect.appendChild(option);
+                    });
+
+                // Debug: log the select options
+                console.log('[renderSessionsTable] populated session-select options count:', sessionSelect.options.length - 1);
+            }
+
+            // Add event listeners
+            document.querySelectorAll('.take-attendance').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const sessionId = this.getAttribute('data-id');
+                    const sessionDateSelect = document.getElementById('session-date');
+                    if (sessionDateSelect) {
+                        sessionDateSelect.value = sessionId;
+                    }
+                    renderAttendanceForm(sessionId);
+
+                    // Switch to attendance tab
+                    document.querySelectorAll('[data-tab-target]').forEach(t => t.classList.remove('active'));
+                    const takeAttendanceTab = document.querySelector('[data-tab-target="#take-attendance"]');
+                    if (takeAttendanceTab) {
+                        takeAttendanceTab.classList.add('active');
+                    }
+
+                    document.querySelectorAll('#attendance .tab-content').forEach(content => {
+                        content.classList.remove('active');
+                        if (content.id === 'take-attendance') {
+                            content.classList.add('active');
+                        }
+                    });
+                });
+            });
+
+            document.querySelectorAll('.delete-session').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const sessionId = this.getAttribute('data-id');
+                    deleteSession(sessionId);
+                });
+            });
+        }
+
+        function saveSession() {
+            const dateInput = document.getElementById('session-date-input');
+            const statusSelect = document.getElementById('session-status');
+
+            if (!dateInput || !statusSelect) return;
+
+            const date = dateInput.value;
+            const status = statusSelect.value;
+            let noClassReason = null;
+
+            if (status === 'NoClass') {
+                const reasonSelect = document.getElementById('noclass-reason');
+                if (reasonSelect) {
+                    noClassReason = reasonSelect.value;
+                }
+            }
+
+            if (!date) {
+                alert('Please select a date');
+                return;
+            }
+
+            // Check for duplicate session date
+            if (DATA_MODELS.sessions.some(s => s.date === date)) {
+                alert('A session already exists for this date');
+                return;
+            }
+
+            const session = {
+                id: generateId(),
+                date,
+                status,
+                noClassReason,
+                createdAt: new Date().toISOString()
+            };
+
+            // Debug: log session about to be saved
+            console.log('[saveSession] creating session:', session);
+
+            DATA_MODELS.sessions.push(session);
+            saveData();
+
+            // Re-render everything that depends on sessions
+            renderSessionsTable();
+            renderDashboard();
+
+            // Close modal and reset
+            const sessionModal = document.getElementById('session-modal');
+            if (sessionModal) sessionModal.style.display = 'none';
+            if (dateInput) dateInput.value = '';
+
+            // Debug: confirm saved session persisted
+            console.log('[saveSession] sessions after save:', DATA_MODELS.sessions);
+        }
+
+        function deleteSession(sessionId) {
+            if (confirm('Are you sure you want to delete this session? All attendance records for this session will be lost.')) {
+                DATA_MODELS.sessions = DATA_MODELS.sessions.filter(s => s.id !== sessionId);
+                DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.sessionId !== sessionId);
+                saveData();
+                renderSessionsTable();
+            }
+        }
+
+        // Attendance Management
+        function renderAttendanceForm(sessionId) {
+            const session = DATA_MODELS.sessions.find(s => s.id === sessionId);
+            if (!session) return;
+
+            const container = document.getElementById('attendance-form-container');
+            if (!container) return;
+
+            let html = `<h3>Take Attendance for ${formatDate(session.date)}</h3>`;
+
+            html += `<div class="form-group">
+                <label>Select Status for All Students:</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
+                    <button class="btn btn-success btn-sm" onclick="setAllStatus('${sessionId}', 'Present')">All Present</button>
+                    <button class="btn btn-danger btn-sm" onclick="setAllStatus('${sessionId}', 'Absent')">All Absent</button>
+                    <button class="btn btn-warning btn-sm" onclick="setAllStatus('${sessionId}', 'Late')">All Late</button>
+                    <button class="btn btn-secondary btn-sm" onclick="setAllStatus('${sessionId}', 'Excused')">All Excused</button>
+                </div>
+            </div>`;
+
+            html += '<table><thead><tr><th>Student</th><th>Status</th></tr></thead><tbody>';
+
+            DATA_MODELS.students.forEach(student => {
+                // Get existing attendance record for this student and session
+                const existing = DATA_MODELS.attendance.find(a =>
+                    a.sessionId === sessionId && a.studentId === student.studentId
+                );
+
+                const status = existing ? existing.status : 'Present';
+
+                html += `
+                    <tr>
+                        <td>${student.firstName} ${student.lastName} (${student.studentId})</td>
+                        <td>
+                            <select class="attendance-status" data-student="${student.studentId}">
+                                <option value="Present" ${status === 'Present' ? 'selected' : ''}>Present</option>
+                                <option value="Absent" ${status === 'Absent' ? 'selected' : ''}>Absent</option>
+                                <option value="Late" ${status === 'Late' ? 'selected' : ''}>Late</option>
+                                <option value="Excused" ${status === 'Excused' ? 'selected' : ''}>Excused</option>
+                            </select>
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            html += '<button class="btn btn-primary" onclick="saveAttendance(\'' + sessionId + '\')">Save Attendance</button>';
+
+            container.innerHTML = html;
+        }
+
+        // Global functions for attendance form
+        function setAllStatus(sessionId, status) {
+            document.querySelectorAll('.attendance-status').forEach(select => {
+                select.value = status;
+            });
+        }
+
+        function saveAttendance(sessionId) {
+            // Remove existing attendance records for this session
+            DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.sessionId !== sessionId);
+
+            // Add new attendance records
+            document.querySelectorAll('.attendance-status').forEach(select => {
+                const studentId = select.getAttribute('data-student');
+                const status = select.value;
+
+                DATA_MODELS.attendance.push({
+                    sessionId,
+                    studentId,
+                    status
+                });
+            });
+
+            saveData();
+            alert('Attendance saved successfully!');
+        }
+
+        // Assessment Management
+        function renderAssessmentsTable() {
+            const tbody = document.querySelector('#assessments-table tbody');
+            if (!tbody) return;
+
+            tbody.innerHTML = '';
+
+            // Sort assessments by date (newest first)
+            const sortedAssessments = [...DATA_MODELS.assessments].sort((a, b) =>
+                new Date(b.date) - new Date(a.date)
+            );
+
+            sortedAssessments.forEach(assessment => {
+                // Count how many students have scores for this assessment
+                const scoredStudents = DATA_MODELS.scores
+                    .filter(score => score.assessmentId === assessment.id)
+                    .length;
+
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${assessment.name}</td>
+                    <td>${formatDate(assessment.date)}</td>
+                    <td>${assessment.totalMarks}</td>
+                    <td>${scoredStudents} of ${DATA_MODELS.students.length}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm record-scores" data-id="${assessment.id}">
+                            <i class="fas fa-edit"></i> Record Scores
+                        </button>
+                        <button class="btn btn-danger btn-sm delete-assessment" data-id="${assessment.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+
+            // Add event listeners
+            document.querySelectorAll('.record-scores').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const assessmentId = this.getAttribute('data-id');
+                    openScoresModal(assessmentId);
+                });
+            });
+
+            document.querySelectorAll('.delete-assessment').forEach(btn => {
+                btn.addEventListener('click', function () {
+                    const assessmentId = this.getAttribute('data-id');
+                    deleteAssessment(assessmentId);
+                });
+            });
+        }
+
+        function saveAssessment() {
+            const nameInput = document.getElementById('assessment-name');
+            const dateInput = document.getElementById('assessment-date');
+            const totalMarksInput = document.getElementById('assessment-total-marks');
+
+            if (!nameInput || !dateInput || !totalMarksInput) return;
+
+            const name = nameInput.value.trim();
+            const date = dateInput.value;
+            const totalMarks = parseInt(totalMarksInput.value);
+
+            if (!name || !date || isNaN(totalMarks) || totalMarks <= 0) {
+                alert('Please fill in all required fields correctly');
+                return;
+            }
+
+            const assessment = {
+                id: generateId(),
+                name,
+                date,
+                totalMarks
+            };
+
+            DATA_MODELS.assessments.push(assessment);
+            saveData();
+            renderAssessmentsTable();
+            document.getElementById('assessment-modal').style.display = 'none';
+        }
+
+        function deleteAssessment(assessmentId) {
+            if (confirm('Are you sure you want to delete this assessment? All scores for this assessment will be lost.')) {
+                DATA_MODELS.assessments = DATA_MODELS.assessments.filter(a => a.id !== assessmentId);
+                DATA_MODELS.scores = DATA_MODELS.scores.filter(s => s.assessmentId !== assessmentId);
+                saveData();
+                renderAssessmentsTable();
+            }
+        }
+
+        function openScoresModal(assessmentId) {
+            const assessment = DATA_MODELS.assessments.find(a => a.id === assessmentId);
+            if (!assessment) return;
+
+            const container = document.getElementById('scores-form-container');
+            if (!container) return;
+
+            let html = `<h3>Record Scores for ${assessment.name}</h3>`;
+            html += `<p>Date: ${formatDate(assessment.date)} | Total Marks: ${assessment.totalMarks}</p>`;
+
+            html += '<table><thead><tr><th>Student</th><th>Score</th></tr></thead><tbody>';
+
+            DATA_MODELS.students.forEach(student => {
+                // Get existing score for this student and assessment
+                const existing = DATA_MODELS.scores.find(s =>
+                    s.assessmentId === assessmentId && s.studentId === student.studentId
+                );
+
+                const score = existing ? existing.marks : '';
+
+                html += `
+                    <tr>
+                        <td>${student.firstName} ${student.lastName} (${student.studentId})</td>
+                        <td>
+                            <input type="number" class="score-input" data-student="${student.studentId}" 
+                                   min="0" max="${assessment.totalMarks}" value="${score}"
+                                   placeholder="0-${assessment.totalMarks}">
+                        </td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            container.innerHTML = html;
+
+            document.getElementById('scores-modal').style.display = 'flex';
+        }
+
+        function saveScores() {
+            const container = document.getElementById('scores-form-container');
+            if (!container) return;
+
+            const heading = container.querySelector('h3');
+            if (!heading) return;
+
+            const assessmentName = heading.textContent.replace('Record Scores for ', '');
+            const assessment = DATA_MODELS.assessments.find(a => a.name === assessmentName);
+
+            if (!assessment) return;
+
+            // Remove existing scores for this assessment
+            DATA_MODELS.scores = DATA_MODELS.scores.filter(s => s.assessmentId !== assessment.id);
+
+            // Add new scores
+            document.querySelectorAll('.score-input').forEach(input => {
+                const studentId = input.getAttribute('data-student');
+                const score = parseInt(input.value);
+
+                if (!isNaN(score) && score >= 0 && score <= assessment.totalMarks) {
+                    DATA_MODELS.scores.push({
+                        assessmentId: assessment.id,
+                        studentId,
+                        marks: score
+                    });
+                }
+            });
+
+            saveData();
+            renderAssessmentsTable();
+            document.getElementById('scores-modal').style.display = 'none';
+            alert('Scores saved successfully!');
+        }
+
+        // Report Generation
+        function updateReportDropdown() {
+            const select = document.getElementById('report-student');
+            if (!select) return;
+
+            select.innerHTML = '<option value="">-- Select a student --</option>';
+
+            DATA_MODELS.students.forEach(student => {
+                const option = document.createElement('option');
+                option.value = student.studentId;
+                option.textContent = `${student.firstName} ${student.lastName} (${student.studentId})`;
+                select.appendChild(option);
+            });
+        }
+
+        function generateStudentReport(studentId) {
+            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+            if (!student) return;
+
+            const container = document.getElementById('report-content');
+            if (!container) return;
+
+            // Calculate attendance statistics
+            const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+            const totalSessionsHeld = availableSessions.length;
+
+            const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === studentId);
+            const presentCount = studentAttendance.filter(a =>
+                a.status === 'Present' || a.status === 'Late'
+            ).length;
+
+            const attendancePercentage = totalSessionsHeld > 0
+                ? Math.round((presentCount / totalSessionsHeld) * 100)
+                : 0;
+
+            // Get student's assessments and scores
+            const studentScores = DATA_MODELS.scores.filter(s => s.studentId === studentId);
+            const assessmentDetails = studentScores.map(score => {
+                const assessment = DATA_MODELS.assessments.find(a => a.id === score.assessmentId);
+                return {
+                    name: assessment ? assessment.name : 'Unknown',
+                    date: assessment ? assessment.date : '',
+                    totalMarks: assessment ? assessment.totalMarks : 0,
+                    marks: score.marks
+                };
+            }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            // Generate HTML for report
+            let html = `
+                <div class="print-only">
+                    <h2>Student Report</h2>
+                    <p>Generated on: ${formatDate(new Date().toISOString())}</p>
+                </div>
+                
+                <div class="report-section">
+                    <h3>Student Information</h3>
+                    <table>
+                        <tr><td><strong>Student ID:</strong></td><td>${student.studentId}</td></tr>
+                        <tr><td><strong>Name:</strong></td><td>${student.firstName} ${student.lastName}</td></tr>
+                        <tr><td><strong>Date of Birth:</strong></td><td>${student.dob ? formatDate(student.dob) : 'N/A'}</td></tr>
+                        <tr><td><strong>Class/Section:</strong></td><td>${student.class || 'N/A'}</td></tr>
+                        <tr><td><strong>Guardian:</strong></td><td>${student.guardian}</td></tr>
+                        <tr><td><strong>Phone:</strong></td><td>${student.phone || 'N/A'}</td></tr>
+                        <tr><td><strong>Email:</strong></td><td>${student.email || 'N/A'}</td></tr>
+                        <tr><td><strong>Notes:</strong></td><td>${student.notes || 'None'}</td></tr>
+                    </table>
+                </div>
+                
+                <div class="report-section">
+                    <h3>Attendance Summary</h3>
+                    <table>
+                        <tr><td><strong>Total Classes Held:</strong></td><td>${totalSessionsHeld}</td></tr>
+                        <tr><td><strong>Sessions Attended:</strong></td><td>${presentCount}</td></tr>
+                        <tr><td><strong>Attendance Percentage:</strong></td><td>${attendancePercentage}%</td></tr>
+                    </table>
+                </div>
+                
+                <div class="report-section">
+                    <h3>Assessment History</h3>
+                    ${assessmentDetails.length > 0 ? `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Assessment</th>
+                                    <th>Date</th>
+                                    <th>Marks Obtained</th>
+                                    <th>Total Marks</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${assessmentDetails.map(detail => `
+                                    <tr>
+                                        <td>${detail.name}</td>
+                                        <td>${formatDate(detail.date)}</td>
+                                        <td>${detail.marks}</td>
+                                        <td>${detail.totalMarks}</td>
+                                        <td>${Math.round((detail.marks / detail.totalMarks) * 100)}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<p>No assessments recorded for this student.</p>'}
+                </div>
+                
+                <div class="report-section">
+                    <h3>Performance Visualization</h3>
+                    <div class="chart-container">
+                        <canvas id="marks-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="attendance-chart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="no-print" style="margin-top: 30px;">
+                    <button class="btn btn-primary" onclick="window.print()">
+                        <i class="fas fa-print"></i> Print Report
+                    </button>
+
+                    <!-- PDF Export button: calls downloadReportPDF(studentId) -->
+                    <button class="btn btn-success" onclick="downloadReportPDF('${studentId}')">
+                        <i class="fas fa-file-pdf"></i> Export as PDF
+                    </button>
+
+                    <!-- CSV Export kept as fallback -->
+                    <button class="btn btn-success" onclick="exportStudentReport('${studentId}')">
+                        <i class="fas fa-file-export"></i> Export as CSV
+                    </button>
+                </div>
+
+            `;
+
+            container.innerHTML = html;
+
+            // Render charts
+            setTimeout(() => {
+                renderMarksChart(assessmentDetails);
+                renderAttendanceChart(studentId);
+            }, 100);
+        }
+
+        // Replace the existing downloadReportPDF(studentId) with this improved version
+        function downloadReportPDF(studentId) {
+            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+            if (!student) { alert('Student not found'); return; }
+
+            const reportContainer = document.getElementById('report-content');
+            if (!reportContainer) { alert('Report not generated yet. Click "Generate Student Report" first.'); return; }
+
+            // --- 1) grab snapshot images from the live Chart.js instances (if any) ---
+            let marksDataUrl = null;
+            let attendanceDataUrl = null;
+            try {
+                if (window.marksChart && typeof window.marksChart.toBase64Image === 'function') {
+                    marksDataUrl = window.marksChart.toBase64Image();
+                }
+            } catch (e) {
+                console.warn('Could not get marks chart image:', e);
+            }
+            try {
+                if (window.attendanceChart && typeof window.attendanceChart.toBase64Image === 'function') {
+                    attendanceDataUrl = window.attendanceChart.toBase64Image();
+                }
+            } catch (e) {
+                console.warn('Could not get attendance chart image:', e);
+            }
+
+            // --- 2) clone the report DOM so we don't mutate the UI ---
+            const clone = reportContainer.cloneNode(true);
+
+            // remove interactive UI from the clone
+            clone.querySelectorAll('button, input, select, .no-print').forEach(n => n.remove());
+
+            // Insert a nicer header (logo, student name, generated date)
+            const header = document.createElement('div');
+            header.style.display = 'flex';
+            header.style.alignItems = 'center';
+            header.style.justifyContent = 'space-between';
+            header.style.marginBottom = '12px';
+            header.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:56px;height:56px;border-radius:8px;background:#3498db;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px">
+                &#x271D;
+            </div>
+            <div>
+                <div style="font-size:18px;font-weight:700;color:#2c3e50">Student Report — ${escapeHtml(student.firstName + ' ' + student.lastName)}</div>
+                <div style="font-size:12px;color:#666">Generated: ${new Date().toLocaleString()}</div>
+            </div>
+        </div>
+        <div style="text-align:right; font-size:12px; color:#666">Catechism Class — Student Reports</div>
+    `;
+            clone.insertBefore(header, clone.firstChild);
+
+            // --- 3) replace cloned <canvas> elements with <img> using captured data URLs ---
+            // helper to replace a canvas node (if present)
+            function replaceCanvasWithImage(containerClone, selectorId, dataUrl) {
+                const canvasNode = containerClone.querySelector(`#${selectorId}`);
+                if (!canvasNode) return;
+                const img = document.createElement('img');
+                img.style.width = '100%';
+                img.style.maxWidth = '100%';
+                img.style.display = 'block';
+                img.style.margin = '8px 0';
+                img.alt = selectorId;
+                if (dataUrl) {
+                    img.src = dataUrl;
+                } else {
+                    // fallback: small placeholder if chart not available
+                    img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+                        `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300">
+                    <rect width="100%" height="100%" fill="#f5f7fa"/>
+                    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#999" font-family="Arial" font-size="18">
+                        Chart not available
+                    </text>
+                </svg>`
+                    );
+                }
+                canvasNode.parentNode.replaceChild(img, canvasNode);
+            }
+
+            replaceCanvasWithImage(clone, 'marks-chart', marksDataUrl);
+            replaceCanvasWithImage(clone, 'attendance-chart', attendanceDataUrl);
+
+            // --- 4) inject lightweight print CSS into the clone (so tables & headings look good) ---
+            const styleEl = document.createElement('style');
+            styleEl.innerHTML = `
+        body{font-family: Arial, sans-serif; color:#222}
+        .report-section h3 { color: #2c3e50; margin-bottom:8px; }
+        table { width:100%; border-collapse: collapse; margin-bottom:12px; }
+        table th, table td { border:1px solid #e5e7eb; padding:8px; text-align:left; font-size:12px; }
+        table th { background: #f7fafc; font-weight:700; }
+        .report-section { margin-bottom: 16px; }
+        /* tighten spacing for PDF */
+        .chart-container { height: 280px; margin-bottom: 8px; }
+    `;
+            // add style into a wrapper so html2pdf picks it up
+            const wrapper = document.createElement('div');
+            wrapper.style.width = '1100px'; // wider for landscape PDF
+            wrapper.style.margin = '0 auto';
+            wrapper.style.background = '#fff';
+            wrapper.style.padding = '18px';
+            wrapper.appendChild(styleEl);
+            wrapper.appendChild(clone);
+
+            // --- 5) configure html2pdf options (landscape for wide charts + higher scale for clarity) ---
+            const filename = `Report_${student.studentId}_${(new Date()).toISOString().slice(0, 10)}.pdf`;
+            const opt = {
+                margin: [10, 10, 10, 10], // mm
+                filename: filename,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2.5, useCORS: true, logging: false, allowTaint: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+
+            // Visual feedback for user (if a button exists in the page)
+            const exportBtn = document.querySelector('.no-print button[onclick^="downloadReportPDF"]');
+            if (exportBtn) { exportBtn.disabled = true; const oldText = exportBtn.textContent; exportBtn.textContent = 'Generating PDF...'; }
+
+            // --- 6) generate PDF ---
+            html2pdf().set(opt).from(wrapper).save().then(() => {
+                if (exportBtn) { exportBtn.disabled = false; exportBtn.textContent = 'Export as PDF'; }
+            }).catch(err => {
+                console.error('PDF export failed', err);
+                alert('Failed to generate PDF. See console for details.');
+                if (exportBtn) { exportBtn.disabled = false; exportBtn.textContent = 'Export as PDF'; }
+            });
+        }
+
+        // small helper to safely escape HTML content for header text
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]); });
+        }
+
+        function renderMarksChart(assessmentDetails) {
+            const canvas = document.getElementById('marks-chart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (window.marksChart) {
+                window.marksChart.destroy();
+            }
+
+            // Prepare data
+            const labels = assessmentDetails.map(d => d.name);
+            const percentages = assessmentDetails.map(d => Math.round((d.marks / d.totalMarks) * 100));
+
+            window.marksChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Performance (%)',
+                        data: percentages,
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderAttendanceChart(studentId) {
+            const canvas = document.getElementById('attendance-chart');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+
+            // Destroy existing chart if it exists
+            if (window.attendanceChart) {
+                window.attendanceChart.destroy();
+            }
+
+            // Group attendance by month
+            const monthlyAttendance = {};
+
+            DATA_MODELS.sessions
+                .filter(s => s.status === 'Available')
+                .forEach(session => {
+                    const month = session.date.substring(0, 7); // YYYY-MM
+                    if (!monthlyAttendance[month]) {
+                        monthlyAttendance[month] = { total: 0, present: 0 };
+                    }
+                    monthlyAttendance[month].total++;
+
+                    const attendance = DATA_MODELS.attendance.find(a =>
+                        a.sessionId === session.id && a.studentId === studentId
+                    );
+
+                    if (attendance && (attendance.status === 'Present' || attendance.status === 'Late')) {
+                        monthlyAttendance[month].present++;
+                    }
+                });
+
+            // Prepare data
+            const months = Object.keys(monthlyAttendance).sort();
+            const percentages = months.map(month => {
+                const data = monthlyAttendance[month];
+                return data.total > 0 ? Math.round((data.present / data.total) * 100) : 0;
+            });
+
+            window.attendanceChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: months.map(m => m.replace('-', '/')),
+                    datasets: [{
+                        label: 'Attendance (%)',
+                        data: percentages,
+                        backgroundColor: '#27ae60',
+                        borderColor: '#219653',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Percentage'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function exportStudentReport(studentId) {
+            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+            if (!student) return;
+
+            // Create CSV content
+            let csvContent = "Student Report\n";
+            csvContent += `Generated on:,${formatDate(new Date().toISOString())}\n\n`;
+
+            csvContent += "Student Information\n";
+            csvContent += "Field,Value\n";
+            csvContent += `Student ID,${student.studentId}\n`;
+            csvContent += `Name,${student.firstName} ${student.lastName}\n`;
+            csvContent += `Date of Birth,${student.dob ? formatDate(student.dob) : 'N/A'}\n`;
+            csvContent += `Class/Section,${student.class || 'N/A'}\n`;
+            csvContent += `Guardian,${student.guardian}\n`;
+            csvContent += `Phone,${student.phone || 'N/A'}\n`;
+            csvContent += `Email,${student.email || 'N/A'}\n`;
+            csvContent += `Notes,${student.notes || 'None'}\n\n`;
+
+            // Attendance summary
+            const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+            const totalSessionsHeld = availableSessions.length;
+
+            const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === studentId);
+            const presentCount = studentAttendance.filter(a =>
+                a.status === 'Present' || a.status === 'Late'
+            ).length;
+
+            const attendancePercentage = totalSessionsHeld > 0
+                ? Math.round((presentCount / totalSessionsHeld) * 100)
+                : 0;
+
+            csvContent += "Attendance Summary\n";
+            csvContent += "Metric,Value\n";
+            csvContent += `Total Classes Held,${totalSessionsHeld}\n`;
+            csvContent += `Sessions Attended,${presentCount}\n`;
+            csvContent += `Attendance Percentage,${attendancePercentage}%\n\n`;
+
+            // Assessment history
+            const studentScores = DATA_MODELS.scores.filter(s => s.studentId === studentId);
+            const assessmentDetails = studentScores.map(score => {
+                const assessment = DATA_MODELS.assessments.find(a => a.id === score.assessmentId);
+                return {
+                    name: assessment ? assessment.name : 'Unknown',
+                    date: assessment ? assessment.date : '',
+                    totalMarks: assessment ? assessment.totalMarks : 0,
+                    marks: score.marks
+                };
+            }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+            csvContent += "Assessment History\n";
+            csvContent += "Assessment,Date,Marks Obtained,Total Marks,Percentage\n";
+
+            assessmentDetails.forEach(detail => {
+                const percentage = Math.round((detail.marks / detail.totalMarks) * 100);
+                csvContent += `"${detail.name}",${formatDate(detail.date)},${detail.marks},${detail.totalMarks},${percentage}%\n`;
+            });
+
+            // Download CSV
+            downloadCSV(csvContent, `student-report-${student.studentId}.csv`);
+        }
+
+        // Dashboard
+        function renderDashboard() {
+            const totalStudentsEl = document.getElementById('total-students');
+            if (totalStudentsEl) {
+                totalStudentsEl.textContent = DATA_MODELS.students.length;
+            }
+
+            const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+            const classesHeldEl = document.getElementById('classes-held');
+            if (classesHeldEl) {
+                classesHeldEl.textContent = availableSessions.length;
+            }
+
+            // Calculate average attendance
+            if (DATA_MODELS.students.length > 0 && availableSessions.length > 0) {
+                let totalAttendance = 0;
+
+                DATA_MODELS.students.forEach(student => {
+                    const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === student.studentId);
+                    const presentCount = studentAttendance.filter(a =>
+                        a.status === 'Present' || a.status === 'Late'
+                    ).length;
+
+                    const attendancePercentage = Math.round((presentCount / availableSessions.length) * 100);
+                    totalAttendance += attendancePercentage;
+                });
+
+                const avgAttendance = Math.round(totalAttendance / DATA_MODELS.students.length);
+                const avgAttendanceEl = document.getElementById('avg-attendance');
+                if (avgAttendanceEl) {
+                    avgAttendanceEl.textContent = `${avgAttendance}%`;
+                }
+            } else {
+                const avgAttendanceEl = document.getElementById('avg-attendance');
+                if (avgAttendanceEl) {
+                    avgAttendanceEl.textContent = '0%';
+                }
+            }
+
+            // Upcoming sessions (next 7 days)
+            const today = new Date();
+            const nextWeek = new Date();
+            nextWeek.setDate(today.getDate() + 7);
+
+            const upcomingSessions = DATA_MODELS.sessions.filter(session => {
+                const sessionDate = new Date(session.date);
+                return sessionDate >= today && sessionDate <= nextWeek;
+            });
+
+            const upcomingSessionsEl = document.getElementById('upcoming-sessions');
+            if (upcomingSessionsEl) {
+                upcomingSessionsEl.textContent = upcomingSessions.length;
+            }
+
+            // Recent activity
+            const recentActivity = [];
+
+            // Add recent sessions
+            const recentSessions = [...DATA_MODELS.sessions]
+                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                .slice(0, 3);
+
+            recentSessions.forEach(session => {
+                recentActivity.push({
+                    date: session.createdAt,
+                    text: `New session created for ${formatDate(session.date)}`
+                });
+            });
+
+            // Add recent assessments
+            const recentAssessments = [...DATA_MODELS.assessments]
+                .sort((a, b) => new Date(b.date) - new Date(a.date))
+                .slice(0, 3);
+
+            recentAssessments.forEach(assessment => {
+                recentActivity.push({
+                    date: assessment.date,
+                    text: `New assessment "${assessment.name}" scheduled for ${formatDate(assessment.date)}`
+                });
+            });
+
+            // Sort by date and display
+            recentActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+            const activityContainer = document.getElementById('recent-activity');
+            if (activityContainer) {
+                if (recentActivity.length > 0) {
+                    let html = '<ul>';
+                    recentActivity.slice(0, 5).forEach(activity => {
+                        html += `<li>${activity.text} <small>(${formatDateTime(activity.date)})</small></li>`;
+                    });
+                    html += '</ul>';
+                    activityContainer.innerHTML = html;
+                } else {
+                    activityContainer.innerHTML = '<p>No recent activity</p>';
+                }
+            }
+        }
+
+        // CSV Import
+        function handleCSVUpload(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                const content = e.target.result;
+                parseCSV(content);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(content) {
+            const lines = content.split('\n').filter(line => line.trim() !== '');
+            if (lines.length < 2) {
+                alert('CSV file must contain at least a header row and one data row');
+                return;
+            }
+
+            const headers = lines[0].split(',').map(h => h.trim());
+            const expectedHeaders = ['studentId', 'firstName', 'lastName', 'dob(YYYY-MM-DD)', 'guardian', 'phone', 'email', 'notes'];
+
+            // Validate headers
+            if (headers.length !== expectedHeaders.length ||
+                !headers.every((h, i) => h === expectedHeaders[i])) {
+                alert('Invalid CSV format. Please check the required headers.');
+                return;
+            }
+
+            // Parse data rows
+            const students = [];
+            const errors = [];
+
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+
+                if (values.length !== headers.length) {
+                    errors.push(`Row ${i + 1}: Invalid number of columns`);
+                    continue;
+                }
+
+                const student = {
+                    studentId: values[0],
+                    firstName: values[1],
+                    lastName: values[2],
+                    dob: values[3],
+                    guardian: values[4],
+                    phone: values[5],
+                    email: values[6],
+                    notes: values[7]
+                };
+
+                // Validate required fields
+                if (!student.studentId || !student.firstName || !student.lastName || !student.guardian) {
+                    errors.push(`Row ${i + 1}: Missing required fields`);
+                    continue;
+                }
+
+                // Validate date format
+                if (student.dob && !/^\d{4}-\d{2}-\d{2}$/.test(student.dob)) {
+                    errors.push(`Row ${i + 1}: Invalid date format (should be YYYY-MM-DD)`);
+                    continue;
+                }
+
+                // Check for duplicate student ID
+                if (DATA_MODELS.students.some(s => s.studentId === student.studentId) ||
+                    students.some(s => s.studentId === student.studentId)) {
+                    errors.push(`Row ${i + 1}: Duplicate student ID`);
+                    continue;
+                }
+
+                students.push(student);
+            }
+
+            // Display preview or errors
+            const container = document.getElementById('preview-container');
+            if (!container) return;
+
+            if (errors.length > 0) {
+                let errorHtml = '<h4>Validation Errors:</h4><ul>';
+                errors.forEach(error => {
+                    errorHtml += `<li>${error}</li>`;
+                });
+                errorHtml += '</ul>';
+                container.innerHTML = errorHtml;
+                const importCsvBtn = document.getElementById('import-csv-btn');
+                if (importCsvBtn) {
+                    importCsvBtn.disabled = true;
+                }
+            } else {
+                let previewHtml = `<h4>Preview (${students.length} students):</h4>`;
+                previewHtml += '<table><thead><tr>';
+                headers.forEach(header => {
+                    previewHtml += `<th>${header}</th>`;
+                });
+                previewHtml += '</tr></thead><tbody>';
+
+                students.slice(0, 5).forEach(student => {
+                    previewHtml += '<tr>';
+                    previewHtml += `<td>${student.studentId}</td>`;
+                    previewHtml += `<td>${student.firstName}</td>`;
+                    previewHtml += `<td>${student.lastName}</td>`;
+                    previewHtml += `<td>${student.dob || ''}</td>`;
+                    previewHtml += `<td>${student.guardian}</td>`;
+                    previewHtml += `<td>${student.phone || ''}</td>`;
+                    previewHtml += `<td>${student.email || ''}</td>`;
+                    previewHtml += `<td>${student.notes || ''}</td>`;
+                    previewHtml += '</tr>';
+                });
+
+                if (students.length > 5) {
+                    previewHtml += `<tr><td colspan="${headers.length}">... and ${students.length - 5} more students</td></tr>`;
+                }
+
+                previewHtml += '</tbody></table>';
+                container.innerHTML = previewHtml;
+                const importCsvBtn = document.getElementById('import-csv-btn');
+                if (importCsvBtn) {
+                    importCsvBtn.disabled = false;
+                    importCsvBtn.dataset.students = JSON.stringify(students);
+                }
+            }
+        }
+
+        function importStudentsFromCSV() {
+            const importCsvBtn = document.getElementById('import-csv-btn');
+            if (!importCsvBtn) return;
+
+            const studentsData = importCsvBtn.dataset.students;
+            if (!studentsData) return;
+
+            const students = JSON.parse(studentsData);
+            DATA_MODELS.students.push(...students);
+            saveData();
+            renderStudentsTable();
+            renderDashboard();
+            updateReportDropdown();
+
+            document.getElementById('import-modal').style.display = 'none';
+            document.getElementById('csv-file').value = '';
+            const previewContainer = document.getElementById('preview-container');
+            if (previewContainer) {
+                previewContainer.innerHTML = '<p>Preview will appear here after selecting a file</p>';
+            }
+            importCsvBtn.disabled = true;
+            delete importCsvBtn.dataset.students;
+
+            alert(`${students.length} students imported successfully!`);
+        }
+
+        // Utility Functions
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function formatDate(dateString) {
+            if (!dateString) return 'N/A';
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric'
+            });
+        }
+
+        function formatDateTime(dateTimeString) {
+            if (!dateTimeString) return 'N/A';
+            const date = new Date(dateTimeString);
+            return date.toLocaleDateString('en-US', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+
+        function downloadCSV(content, filename) {
+            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', filename);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+
+</html>
