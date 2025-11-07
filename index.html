@@ -409,616 +409,1053 @@
 </head>
 
 <body>
-    <header>
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">
-                    <i class="fas fa-church"></i>
-                    <h1>Catechism Student Manager</h1>
-                </div>
-                <nav>
-                    <ul>
-                        <li><a href="#" class="active" data-tab="dashboard">Dashboard</a></li>
-                        <li><a href="#" data-tab="students">Students</a></li>
-                        <li><a href="#" data-tab="attendance">Attendance</a></li>
-                        <li><a href="#" data-tab="assessments">Assessments</a></li>
-                        <li><a href="#" data-tab="reports">Reports</a></li>
-                    </ul>
-                </nav>
+    <!-- Error overlay (shows when the app crashes during init) -->
+    <div id="app-error-overlay"
+        style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:9999;color:#fff;padding:28px;box-sizing:border-box;">
+        <div
+            style="max-width:900px;margin:40px auto;background:#1e293b;padding:20px;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,0.6);">
+            <h2 style="margin:0 0 8px 0;">App initialization failed</h2>
+            <p id="app-error-message" style="color:#ffd2d2;font-family:monospace;font-size:13px;white-space:pre-wrap;">
+            </p>
+            <div style="margin-top:12px;">
+                <button id="app-error-reload"
+                    style="padding:8px 12px;border-radius:6px;border:none;background:#10b981;color:#fff;cursor:pointer;">Reload
+                    page</button>
+                <button id="app-error-console"
+                    style="padding:8px 12px;border-radius:6px;border:none;background:#2563eb;color:#fff;cursor:pointer;margin-left:8px;">Open
+                    console</button>
             </div>
         </div>
-    </header>
+    </div>
 
-    <div class="container">
-        <div class="main-content">
-            <!-- Dashboard Tab -->
-            <div id="dashboard" class="tab-content active">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Dashboard Overview</h2>
-                    </div>
-                    <div class="grid">
-                        <div class="card">
-                            <h3>Total Students</h3>
-                            <p class="stat-number" id="total-students">0</p>
-                        </div>
-                        <div class="card">
-                            <h3>Classes Held</h3>
-                            <p class="stat-number" id="classes-held">0</p>
-                        </div>
-                        <div class="card">
-                            <h3>Avg Attendance</h3>
-                            <p class="stat-number" id="avg-attendance">0%</p>
-                        </div>
-                        <div class="card">
-                            <h3>Upcoming Sessions</h3>
-                            <p class="stat-number" id="upcoming-sessions">0</p>
-                        </div>
-                    </div>
-                </div>
+    <!-- Login Screen -->
+    <div id="login-screen"
+        style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;">
+        <h2 style="margin-bottom:20px;">Catechism Manager Login</h2>
+        <form id="login-form" style="display:flex;flex-direction:column;gap:10px;width:300px;">
+            <input type="text" id="login-username" placeholder="Username" required
+                style="padding:10px;border-radius:5px;border:1px solid #ccc;">
+            <input type="password" id="login-password" placeholder="Password" required
+                style="padding:10px;border-radius:5px;border:1px solid #ccc;">
+            <button type="submit"
+                style="padding:10px;background-color:#3498db;color:white;border:none;border-radius:5px;cursor:pointer;">Login</button>
+        </form>
+        <p id="login-error" style="color:red;display:none;">Invalid credentials</p>
+    </div>
 
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Recent Activity</h2>
-                    </div>
-                    <div id="recent-activity">
-                        <p>No recent activity</p>
-                    </div>
-                </div>
-            </div>
+    <!-- 🔒 Everything below is hidden until login -->
+    <div id="app-content">
 
-            <!-- Students Tab -->
-            <div id="students" class="tab-content">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Student Management</h2>
-                        <div>
-                            <button class="btn btn-primary" id="add-student-btn" data-modal="student-modal">
-                                <i class="fas fa-plus"></i> Add Student
-                            </button>
-                            <button class="btn btn-outline" id="import-students-btn" data-modal="import-modal">
-                                <i class="fas fa-file-import"></i> Import CSV
-                            </button>
-                        </div>
+        <header>
+            <div class="container">
+                <div class="header-content">
+                    <div class="logo">
+                        <i class="fas fa-church"></i>
+                        <h1>Catechism Student Manager</h1>
                     </div>
-
-                    <div class="search-bar">
-                        <input type="text" id="student-search" placeholder="Search students...">
-                        <button class="btn btn-primary"><i class="fas fa-search"></i></button>
-                    </div>
-
-                    <table id="students-table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Name</th>
-                                <th>Guardian</th>
-                                <th>Contact</th>
-                                <th>Class</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Student rows will be populated here -->
-                        </tbody>
-                    </table>
+                    <nav>
+                        <ul>
+                            <li><a href="#" class="active" data-tab="dashboard">Dashboard</a></li>
+                            <li><a href="#" data-tab="students">Students</a></li>
+                            <li><a href="#" data-tab="attendance">Attendance</a></li>
+                            <li><a href="#" data-tab="assessments">Assessments</a></li>
+                            <li><a href="#" data-tab="reports">Reports</a></li>
+                        </ul>
+                    </nav>
+                    <!-- Add this inside header .header-content, near the right side -->
+                    <button id="migrate-btn" class="btn btn-outline" style="margin-left:12px; display:none;">
+                        <i class="fas fa-cloud-upload-alt"></i> Migrate → Firestore
+                    </button>
+                    <button id="import-firestore-btn" class="btn btn-outline" style="margin-left:8px; display:none;">
+                        <i class="fas fa-cloud-download-alt"></i> Import from Firestore
+                    </button>
                 </div>
             </div>
+        </header>
 
-            <!-- Attendance Tab -->
-            <div id="attendance" class="tab-content">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Attendance Management</h2>
-                        <button class="btn btn-primary" id="new-session-btn" data-modal="session-modal">
-                            <i class="fas fa-calendar-plus"></i> New Session
-                        </button>
+        <div class="container">
+            <div class="main-content">
+                <!-- Dashboard Tab -->
+                <div id="dashboard" class="tab-content active">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Dashboard Overview</h2>
+                        </div>
+                        <div class="grid">
+                            <div class="card">
+                                <h3>Total Students</h3>
+                                <p class="stat-number" id="total-students">0</p>
+                            </div>
+                            <div class="card">
+                                <h3>Classes Held</h3>
+                                <p class="stat-number" id="classes-held">0</p>
+                            </div>
+                            <div class="card">
+                                <h3>Avg Attendance</h3>
+                                <p class="stat-number" id="avg-attendance">0%</p>
+                            </div>
+                            <div class="card">
+                                <h3>Upcoming Sessions</h3>
+                                <p class="stat-number" id="upcoming-sessions">0</p>
+                            </div>
+                        </div>
                     </div>
 
-                    <div class="tabs">
-                        <div class="tab active" data-tab-target="#session-list">Sessions</div>
-                        <div class="tab" data-tab-target="#take-attendance">Take Attendance</div>
-                    </div>
 
-                    <div id="session-list" class="tab-content active">
-                        <table id="sessions-table">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Recent Activity</h2>
+                        </div>
+                        <div id="recent-activity">
+                            <p>No recent activity</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Students Tab -->
+                <div id="students" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Student Management</h2>
+                            <div>
+                                <button class="btn btn-primary" id="add-student-btn" data-modal="student-modal">
+                                    <i class="fas fa-plus"></i> Add Student
+                                </button>
+                                <button class="btn btn-outline" id="import-students-btn" data-modal="import-modal">
+                                    <i class="fas fa-file-import"></i> Import CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="search-bar">
+                            <input type="text" id="student-search" placeholder="Search students...">
+                            <button class="btn btn-primary"><i class="fas fa-search"></i></button>
+                        </div>
+
+                        <table id="students-table">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Status</th>
-                                    <th>Reason</th>
+                                    <th>ID</th>
+                                    <th>Name</th>
+                                    <th>Guardian</th>
+                                    <th>Contact</th>
+                                    <th>Class</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- Session rows will be populated here -->
+                                <!-- Student rows will be populated here -->
                             </tbody>
                         </table>
                     </div>
+                </div>
 
-                    <div id="take-attendance" class="tab-content">
+                <!-- Attendance Tab -->
+                <div id="attendance" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Attendance Management</h2>
+                            <button class="btn btn-primary" id="new-session-btn" data-modal="session-modal">
+                                <i class="fas fa-calendar-plus"></i> New Session
+                            </button>
+                        </div>
+
+                        <div class="tabs">
+                            <div class="tab active" data-tab-target="#session-list">Sessions</div>
+                            <div class="tab" data-tab-target="#take-attendance">Take Attendance</div>
+                        </div>
+
+                        <div id="session-list" class="tab-content active">
+                            <table id="sessions-table">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Status</th>
+                                        <th>Reason</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Session rows will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div id="take-attendance" class="tab-content">
+                            <div class="form-group">
+                                <label for="session-date">Select Session Date</label>
+                                <select id="session-date">
+                                    <option value="">-- Select a session --</option>
+                                    <!-- Options will be populated here -->
+                                </select>
+                            </div>
+
+                            <div id="attendance-form-container">
+                                <p>Select a session to take attendance</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Assessments Tab -->
+                <div id="assessments" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Assessment Management</h2>
+                            <button class="btn btn-primary" id="new-assessment-btn" data-modal="assessment-modal">
+                                <i class="fas fa-plus-circle"></i> New Assessment
+                            </button>
+                        </div>
+
+                        <table id="assessments-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Date</th>
+                                    <th>Total Marks</th>
+                                    <th>Students Recorded</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Assessment rows will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Reports Tab -->
+                <div id="reports" class="tab-content">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Student Reports</h2>
+                        </div>
+
                         <div class="form-group">
-                            <label for="session-date">Select Session Date</label>
-                            <select id="session-date">
-                                <option value="">-- Select a session --</option>
+                            <label for="report-student">Select Student</label>
+                            <select id="report-student">
+                                <option value="">-- Select a student --</option>
                                 <!-- Options will be populated here -->
                             </select>
                         </div>
 
-                        <div id="attendance-form-container">
-                            <p>Select a session to take attendance</p>
+                        <div id="report-content">
+                            <p>Select a student to generate a report</p>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- Assessments Tab -->
-            <div id="assessments" class="tab-content">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Assessment Management</h2>
-                        <button class="btn btn-primary" id="new-assessment-btn" data-modal="assessment-modal">
-                            <i class="fas fa-plus-circle"></i> New Assessment
-                        </button>
-                    </div>
-
-                    <table id="assessments-table">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Date</th>
-                                <th>Total Marks</th>
-                                <th>Students Recorded</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Assessment rows will be populated here -->
-                        </tbody>
-                    </table>
+        <!-- Modals -->
+        <div id="student-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 id="student-modal-title">Add Student</h3>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="student-form">
+                        <input type="hidden" id="student-id">
+                        <div class="grid">
+                            <div class="form-group">
+                                <label for="student-first-name">First Name *</label>
+                                <input type="text" id="student-first-name" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="student-last-name">Last Name *</label>
+                                <input type="text" id="student-last-name" required>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="student-id-input">Student ID *</label>
+                            <input type="text" id="student-id-input" required>
+                        </div>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label for="student-dob">Date of Birth</label>
+                                <input type="date" id="student-dob">
+                            </div>
+                            <div class="form-group">
+                                <label for="student-class">Class/Section</label>
+                                <input type="text" id="student-class">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="student-guardian">Guardian Name *</label>
+                            <input type="text" id="student-guardian" required>
+                        </div>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label for="student-phone">Phone</label>
+                                <input type="tel" id="student-phone">
+                            </div>
+                            <div class="form-group">
+                                <label for="student-email">Email</label>
+                                <input type="email" id="student-email">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="student-notes">Notes</label>
+                            <textarea id="student-notes" rows="3"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline close-btn">Cancel</button>
+                    <button class="btn btn-primary" id="save-student-btn">Save Student</button>
                 </div>
             </div>
+        </div>
 
-            <!-- Reports Tab -->
-            <div id="reports" class="tab-content">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">Student Reports</h2>
-                    </div>
-
-                    <div class="form-group">
-                        <label for="report-student">Select Student</label>
-                        <select id="report-student">
-                            <option value="">-- Select a student --</option>
-                            <!-- Options will be populated here -->
-                        </select>
-                    </div>
-
-                    <div id="report-content">
-                        <p>Select a student to generate a report</p>
-                    </div>
+        <div id="session-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create New Session</h3>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="session-form">
+                        <div class="form-group">
+                            <label for="session-date-input">Session Date *</label>
+                            <input type="date" id="session-date-input" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="session-status">Session Status *</label>
+                            <select id="session-status" required>
+                                <option value="Available">Class Available</option>
+                                <option value="NoClass">No Class</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="noclass-reason-group" style="display: none;">
+                            <label for="noclass-reason">No Class Reason</label>
+                            <select id="noclass-reason">
+                                <option value="holiday">Holiday</option>
+                                <option value="first-week">First Week - No Class</option>
+                                <option value="canceled">Canceled</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline close-btn">Cancel</button>
+                    <button class="btn btn-primary" id="save-session-btn">Create Session</button>
                 </div>
             </div>
         </div>
-    </div>
 
-    <!-- Modals -->
-    <div id="student-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3 id="student-modal-title">Add Student</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="student-form">
-                    <input type="hidden" id="student-id">
-                    <div class="grid">
+        <div id="assessment-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Create New Assessment</h3>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <form id="assessment-form">
                         <div class="form-group">
-                            <label for="student-first-name">First Name *</label>
-                            <input type="text" id="student-first-name" required>
+                            <label for="assessment-name">Assessment Name *</label>
+                            <input type="text" id="assessment-name" required>
                         </div>
-                        <div class="form-group">
-                            <label for="student-last-name">Last Name *</label>
-                            <input type="text" id="student-last-name" required>
+                        <div class="grid">
+                            <div class="form-group">
+                                <label for="assessment-date">Date *</label>
+                                <input type="date" id="assessment-date" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="assessment-total-marks">Total Marks *</label>
+                                <input type="number" id="assessment-total-marks" min="1" required>
+                            </div>
                         </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="student-id-input">Student ID *</label>
-                        <input type="text" id="student-id-input" required>
-                    </div>
-                    <div class="grid">
-                        <div class="form-group">
-                            <label for="student-dob">Date of Birth</label>
-                            <input type="date" id="student-dob">
-                        </div>
-                        <div class="form-group">
-                            <label for="student-class">Class/Section</label>
-                            <input type="text" id="student-class">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="student-guardian">Guardian Name *</label>
-                        <input type="text" id="student-guardian" required>
-                    </div>
-                    <div class="grid">
-                        <div class="form-group">
-                            <label for="student-phone">Phone</label>
-                            <input type="tel" id="student-phone">
-                        </div>
-                        <div class="form-group">
-                            <label for="student-email">Email</label>
-                            <input type="email" id="student-email">
-                        </div>
-                    </div>
-                    <div class="form-group">
-                        <label for="student-notes">Notes</label>
-                        <textarea id="student-notes" rows="3"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline close-btn">Cancel</button>
-                <button class="btn btn-primary" id="save-student-btn">Save Student</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="session-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Create New Session</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="session-form">
-                    <div class="form-group">
-                        <label for="session-date-input">Session Date *</label>
-                        <input type="date" id="session-date-input" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="session-status">Session Status *</label>
-                        <select id="session-status" required>
-                            <option value="Available">Class Available</option>
-                            <option value="NoClass">No Class</option>
-                        </select>
-                    </div>
-                    <div class="form-group" id="noclass-reason-group" style="display: none;">
-                        <label for="noclass-reason">No Class Reason</label>
-                        <select id="noclass-reason">
-                            <option value="holiday">Holiday</option>
-                            <option value="first-week">First Week - No Class</option>
-                            <option value="canceled">Canceled</option>
-                            <option value="other">Other</option>
-                        </select>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline close-btn">Cancel</button>
-                <button class="btn btn-primary" id="save-session-btn">Create Session</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="assessment-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Create New Assessment</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <form id="assessment-form">
-                    <div class="form-group">
-                        <label for="assessment-name">Assessment Name *</label>
-                        <input type="text" id="assessment-name" required>
-                    </div>
-                    <div class="grid">
-                        <div class="form-group">
-                            <label for="assessment-date">Date *</label>
-                            <input type="date" id="assessment-date" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="assessment-total-marks">Total Marks *</label>
-                            <input type="number" id="assessment-total-marks" min="1" required>
-                        </div>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline close-btn">Cancel</button>
-                <button class="btn btn-primary" id="save-assessment-btn">Create Assessment</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="scores-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Record Scores</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div id="scores-form-container">
-                    <!-- Scores form will be populated here -->
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline close-btn">Cancel</button>
+                    <button class="btn btn-primary" id="save-assessment-btn">Create Assessment</button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline close-btn">Cancel</button>
-                <button class="btn btn-primary" id="save-scores-btn">Save Scores</button>
-            </div>
         </div>
-    </div>
 
-    <div id="import-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Import Students from CSV</h3>
-                <button class="close-btn">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label for="csv-file">Upload CSV File</label>
-                    <input type="file" id="csv-file" accept=".csv">
+        <div id="scores-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Record Scores</h3>
+                    <button class="close-btn">&times;</button>
                 </div>
-                <div id="preview-container">
-                    <p>Preview will appear here after selecting a file</p>
+                <div class="modal-body">
+                    <div id="scores-form-container">
+                        <!-- Scores form will be populated here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline close-btn">Cancel</button>
+                    <button class="btn btn-primary" id="save-scores-btn">Save Scores</button>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline close-btn">Cancel</button>
-                <button class="btn btn-success" id="import-csv-btn" disabled>Import Students</button>
+        </div>
+
+        <div id="import-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Import Students from CSV</h3>
+                    <button class="close-btn">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="csv-file">Upload CSV File</label>
+                        <input type="file" id="csv-file" accept=".csv">
+                    </div>
+                    <div id="preview-container">
+                        <p>Preview will appear here after selecting a file</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-outline close-btn">Cancel</button>
+                    <button class="btn btn-success" id="import-csv-btn" disabled>Import Students</button>
+                </div>
             </div>
         </div>
-    </div>
-    <!-- View Student Details Modal -->
-    <div id="student-view-modal" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>Student Details</h3>
-                <button class="close-btn" id="close-view-modal">&times;</button>
+        <!-- View Student Details Modal -->
+        <div id="student-view-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Student Details</h3>
+                    <button class="close-btn" id="close-view-modal">&times;</button>
+                </div>
+                <div class="modal-body" id="student-details-content"></div>
             </div>
-            <div class="modal-body" id="student-details-content"></div>
         </div>
-    </div>
 
 
-    <script>
-        // Data Models
-        const DATA_MODELS = {
-            students: [],
-            sessions: [],
-            attendance: [],
-            assessments: [],
-            scores: []
-        };
+        <script type="module">
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-app.js";
+            import {
+                getFirestore,
+                collection,
+                getDocs,
+                query,
+                where,
+                addDoc,
+                setDoc,
+                doc,
+                getDoc,
+                deleteDoc,
+                onSnapshot
+            } from "https://www.gstatic.com/firebasejs/12.5.0/firebase-firestore.js";
 
-        // DOM Elements
-        const tabs = document.querySelectorAll('[data-tab]');
-        const tabContents = document.querySelectorAll('.tab-content');
-        // const modalTriggers = document.querySelectorAll('[data-modal]');
-        const modals = document.querySelectorAll('.modal');
-        const closeButtons = document.querySelectorAll('.close-btn');
+            const firebaseConfig = {
+                apiKey: "AIzaSyBCQP52WR_CKWzGb7dzVVEYWzjkwWMjUuQ",
+                authDomain: "catechism-manager.firebaseapp.com",
+                projectId: "catechism-manager",
+                storageBucket: "catechism-manager.firebasestorage.app",
+                messagingSenderId: "61420977041",
+                appId: "1:61420977041:web:817e19016716e31cf1b830",
+                measurementId: "G-PG4J7GX5W6"
+            };
 
-        // Initialize app
-        document.addEventListener('DOMContentLoaded', function () {
-            loadData();
-            renderDashboard();
-            renderStudentsTable();
-            renderSessionsTable();
-            renderAssessmentsTable();
-            setupEventListeners();
-            updateReportDropdown();
-        });
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
 
-        // Navigation
-        tabs.forEach(tab => {
-            tab.addEventListener('click', function (e) {
-                e.preventDefault();
-                const targetTab = this.getAttribute('data-tab');
+            // expose useful functions to global scope for non-module scripts
+            window.db = db;
+            window.collection = collection;
+            window.getDocs = getDocs;
+            window.query = query;
+            window.where = where;
+            window.addDoc = addDoc;
+            window.setDoc = setDoc;
+            window.doc = doc;
+            window.getDoc = getDoc;
+            window.deleteDoc = deleteDoc;
+            window.onSnapshot = onSnapshot;
+        </script>
 
-                // Update active tab in navigation
-                document.querySelectorAll('[data-tab]').forEach(t => t.classList.remove('active'));
-                this.classList.add('active');
+        <script>
+            // Show a nice overlay for uncaught errors (helps when white-screen occurs)
+            window.addEventListener('error', function (ev) {
+                try {
+                    const overlay = document.getElementById('app-error-overlay');
+                    const msg = document.getElementById('app-error-message');
+                    if (overlay && msg) {
+                        overlay.style.display = 'block';
+                        msg.textContent = `${ev.message}\n${ev.filename || ''}:${ev.lineno || ''}:${ev.colno || ''}\n\nSee console for stack.`;
+                        document.getElementById('app-error-reload').onclick = () => location.reload();
+                        document.getElementById('app-error-console').onclick = () => { /* focus console for user */ console.log('Open DevTools -> Console'); };
+                    }
+                } catch (e) { /* ignore overlay errors */ }
+            });
 
-                // Show corresponding content
-                tabContents.forEach(content => {
-                    content.classList.remove('active');
-                    if (content.id === targetTab) {
-                        content.classList.add('active');
+            // Also catch unhandled promise rejections
+            window.addEventListener('unhandledrejection', function (ev) {
+                try {
+                    const overlay = document.getElementById('app-error-overlay');
+                    const msg = document.getElementById('app-error-message');
+                    if (overlay && msg) {
+                        overlay.style.display = 'block';
+                        msg.textContent = `Unhandled promise rejection:\n${ev.reason && ev.reason.message ? ev.reason.message : JSON.stringify(ev.reason)}`;
+                    }
+                } catch (e) { }
+            });
+
+
+            // 🔐 Simple Role-Based Login (Firestore)
+            document.addEventListener('DOMContentLoaded', function () {
+                const loginScreen = document.getElementById('login-screen');
+                const appContent = document.getElementById('app-content');
+                const loginForm = document.getElementById('login-form');
+                const loginError = document.getElementById('login-error');
+
+                appContent.style.display = 'none'; // Hide main app initially
+
+                loginForm.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    const username = document.getElementById('login-username').value.trim();
+                    const password = document.getElementById('login-password').value.trim();
+
+                    try {
+                        const q = query(collection(window.db, "users"),
+                            where("username", "==", username),
+                            where("password", "==", password));
+                        const snapshot = await getDocs(q);
+
+                        if (!snapshot.empty) {
+                            const userData = snapshot.docs[0].data();
+                            localStorage.setItem('currentUser', JSON.stringify(userData));
+
+                            loginScreen.style.display = 'none';
+                            appContent.style.display = 'block';
+                            alert(`Welcome, ${userData.username}! Role: ${userData.role}`);
+
+                            applyRoleRestrictions(userData.role);
+                            showMigrationButtonsIfAdmin();
+                            startRealtimeListeners(); // starts realtime updates
+                        } else {
+                            loginError.style.display = 'block';
+                        }
+
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        loginError.textContent = 'Error connecting to database';
+                        loginError.style.display = 'block';
                     }
                 });
+            });
 
-                // Special handling for reports tab
-                if (targetTab === 'reports') {
+            (function restoreSession() {
+                const currentUser = localStorage.getItem('currentUser');
+                if (currentUser) {
+                    const userData = JSON.parse(currentUser);
+                    document.getElementById('login-screen').style.display = 'none';
+                    document.getElementById('app-content').style.display = 'block';
+                    applyRoleRestrictions(userData.role);
+                    // <-- ADD THIS LINE
+                    showMigrationButtonsIfAdmin();
+                }
+            })();
+
+            // Add logout button dynamically (top-right) - optional
+            (function addLogoutBtn() {
+                const header = document.querySelector('header .header-content');
+                if (!header) return;
+                const btn = document.createElement('button');
+                btn.id = 'logout-btn';
+                btn.className = 'btn btn-outline';
+                btn.style.marginLeft = '12px';
+                btn.textContent = 'Logout';
+                btn.addEventListener('click', () => {
+                    stopRealtimeListeners();
+                    localStorage.removeItem('currentUser');
+                    location.reload();
+                });
+                header.appendChild(btn);
+                // header.appendChild(btn);
+                // ensure migration buttons visibility is recalculated
+                showMigrationButtonsIfAdmin();
+            })();
+
+            // 🔐 Apply UI restrictions
+            function applyRoleRestrictions(role) {
+                // Example: only admin can add students or create sessions
+                if (role !== 'admin') {
+                    document.querySelectorAll('#add-student-btn, #new-session-btn, #new-assessment-btn')
+                        .forEach(btn => btn.style.display = 'none');
+                }
+            }
+
+            // Data Models
+            const DATA_MODELS = {
+                students: [],
+                sessions: [],
+                attendance: [],
+                assessments: [],
+                scores: []
+            };
+
+            // --- Recovery safeguard: ensure DATA_MODELS exists ---
+            if (!window.DATA_MODELS) {
+                window.DATA_MODELS = {
+                    students: [],
+                    sessions: [],
+                    attendance: [],
+                    assessments: [],
+                    scores: []
+                };
+                console.log('Created default DATA_MODELS');
+            } else {
+                console.log('DATA_MODELS already exists');
+            }
+
+            // --- Reinitialize data safely after reload ---
+            (async () => {
+                try {
+                    if (typeof loadData !== 'function') {
+                        console.warn('loadData not defined yet — skipping Firestore/localStorage init');
+                        return;
+                    }
+                    console.log('Calling loadData() — result will appear when done...');
+                    await loadData();
+                    console.log('loadData completed. students:', DATA_MODELS.students.length, 'sessions:', DATA_MODELS.sessions.length);
+                } catch (e) {
+                    console.error('loadData failed:', e);
+                }
+            })();
+
+
+            // ----------------- Firestore migration / import helpers -----------------
+
+            // Show migrate/import buttons to admins
+            // Show migrate/import buttons to admins — improved version with debug logs and fallback display
+            function showMigrationButtonsIfAdmin() {
+                try {
+                    const curJson = localStorage.getItem('currentUser') || 'null';
+                    const cur = JSON.parse(curJson);
+
+                    // debug — uncomment if you need logs
+                    // console.log('[showMigrationButtonsIfAdmin] currentUser:', cur);
+
+                    const migrateBtn = document.getElementById('migrate-btn');
+                    const importBtn = document.getElementById('import-firestore-btn');
+
+                    // hide by default (defensive)
+                    if (migrateBtn) migrateBtn.style.display = 'none';
+                    if (importBtn) importBtn.style.display = 'none';
+
+                    if (!cur) return;                 // no user stored
+                    if (!cur.role) return;            // no role assigned
+
+                    const role = String(cur.role).toLowerCase(); // make case-insensitive
+                    if (role === 'admin') {
+                        if (migrateBtn) migrateBtn.style.display = 'inline-flex';
+                        if (importBtn) importBtn.style.display = 'inline-flex';
+                    }
+                } catch (e) {
+                    console.error('[showMigrationButtonsIfAdmin] error', e);
+                }
+            }
+
+
+            // Call after login and on page load restore
+            showMigrationButtonsIfAdmin();
+
+            // Helper: Upload a whole collection from an array (replacing existing docs if exist)
+            async function migrateCollectionToFirestore(collectionName, items, idKey = 'id', useIdAsDoc = false) {
+                if (!window.db || !window.addDoc || !window.setDoc || !window.doc) {
+                    throw new Error('Firestore not initialized');
+                }
+                const colRef = collection(window.db, collectionName);
+
+                // We'll write each item as a new doc. If useIdAsDoc=true we'll use that id as doc id (string).
+                const results = [];
+                for (const item of items) {
+                    try {
+                        if (useIdAsDoc && item[idKey]) {
+                            // setDoc at specific doc id
+                            const dref = doc(window.db, collectionName, String(item[idKey]));
+                            await setDoc(dref, item);
+                            results.push({ ok: true, id: item[idKey] });
+                        } else {
+                            const r = await addDoc(colRef, item);
+                            results.push({ ok: true, id: r.id });
+                        }
+                    } catch (err) {
+                        results.push({ ok: false, error: err.message || String(err) });
+                    }
+                }
+                return results;
+            }
+
+            // Migrate all DATA_MODELS to Firestore (admin-only)
+            async function migrateAllToFirestore() {
+                if (!confirm('This will upload current local data to Firestore. Proceed?')) return;
+
+                try {
+                    // students: use studentId as doc id
+                    const students = DATA_MODELS.students.map(s => ({ ...s }));
+                    const sessions = DATA_MODELS.sessions.map(s => ({ ...s }));
+                    const attendance = DATA_MODELS.attendance.map(a => ({ ...a }));
+                    const assessments = DATA_MODELS.assessments.map(a => ({ ...a }));
+                    const scores = DATA_MODELS.scores.map(s => ({ ...s }));
+
+                    // Upload collections in sequence (you may parallelize later)
+                    await migrateCollectionToFirestore('students', students, 'studentId', true);
+                    await migrateCollectionToFirestore('sessions', sessions, 'id', true);
+                    await migrateCollectionToFirestore('attendance', attendance, null, false);
+                    await migrateCollectionToFirestore('assessments', assessments, 'id', true);
+                    await migrateCollectionToFirestore('scores', scores, null, false);
+
+                    alert('Migration to Firestore completed (check console for details).');
+                    console.log('Migration complete');
+                } catch (err) {
+                    console.error('Migration failed', err);
+                    alert('Migration failed: ' + err.message);
+                }
+            }
+
+            // Import entire app data from Firestore into DATA_MODELS (careful: merges, does not delete local)
+            async function importAllFromFirestore() {
+                if (!confirm('This will import data from Firestore and merge into local data. Proceed?')) return;
+
+                try {
+                    // students
+                    const studentsSnap = await getDocs(collection(window.db, 'students'));
+                    const newStudents = [];
+                    studentsSnap.forEach(docSnap => {
+                        newStudents.push(docSnap.data());
+                    });
+
+                    // sessions
+                    const sessionsSnap = await getDocs(collection(window.db, 'sessions'));
+                    const newSessions = [];
+                    sessionsSnap.forEach(docSnap => newSessions.push(docSnap.data()));
+
+                    // attendance
+                    const attendanceSnap = await getDocs(collection(window.db, 'attendance'));
+                    const newAttendance = [];
+                    attendanceSnap.forEach(docSnap => newAttendance.push(docSnap.data()));
+
+                    // assessments
+                    const assessmentsSnap = await getDocs(collection(window.db, 'assessments'));
+                    const newAssessments = [];
+                    assessmentsSnap.forEach(docSnap => newAssessments.push(docSnap.data()));
+
+                    // scores
+                    const scoresSnap = await getDocs(collection(window.db, 'scores'));
+                    const newScores = [];
+                    scoresSnap.forEach(docSnap => newScores.push(docSnap.data()));
+
+                    // Merge into local DATA_MODELS (avoid duplicates)
+                    function mergeUnique(arrLocal, arrImported, idKey) {
+                        const map = new Map(arrLocal.map(i => [i[idKey], i]));
+                        for (const it of arrImported) {
+                            if (!map.has(it[idKey])) {
+                                arrLocal.push(it);
+                            }
+                        }
+                    }
+
+                    mergeUnique(DATA_MODELS.students, newStudents, 'studentId');
+                    mergeUnique(DATA_MODELS.sessions, newSessions, 'id');
+                    // attendance and scores may not have stable ids; just append if not exact duplicate
+                    DATA_MODELS.attendance = DATA_MODELS.attendance.concat(newAttendance.filter(a => {
+                        return !DATA_MODELS.attendance.some(x => x.sessionId === a.sessionId && x.studentId === a.studentId);
+                    }));
+                    DATA_MODELS.assessments = DATA_MODELS.assessments.concat(newAssessments.filter(a => {
+                        return !DATA_MODELS.assessments.some(x => x.id === a.id);
+                    }));
+                    DATA_MODELS.scores = DATA_MODELS.scores.concat(newScores.filter(s => {
+                        return !DATA_MODELS.scores.some(x => x.assessmentId === s.assessmentId && x.studentId === s.studentId);
+                    }));
+
+                    saveData();
+                    renderStudentsTable();
                     renderSessionsTable();
-                    renderAttendanceForm();
+                    renderAssessmentsTable();
+                    updateReportDropdown();
+
+                    alert('Import completed and merged into local data.');
+                } catch (err) {
+                    console.error('Import failed', err);
+                    alert('Import failed: ' + err.message);
                 }
+            }
+
+            // Wire the buttons
+            document.addEventListener('DOMContentLoaded', () => {
+                const migrateBtn = document.getElementById('migrate-btn');
+                const importBtn = document.getElementById('import-firestore-btn');
+                if (migrateBtn) migrateBtn.addEventListener('click', migrateAllToFirestore);
+                if (importBtn) importBtn.addEventListener('click', importAllFromFirestore);
             });
-        });
-
-        // Modal triggers: any element with a data-modal attribute
-        const modalTriggers = document.querySelectorAll('[data-modal]');
-
-        modalTriggers.forEach(trigger => {
-            trigger.addEventListener('click', function (e) {
-                e.preventDefault();
-                const modalId = this.dataset.modal;
-                const modalEl = document.getElementById(modalId);
-                if (!modalEl) return console.warn('Modal not found:', modalId);
-
-                modalEl.style.display = 'flex';
-
-                // Special handling for different modals (keep previous logic)
-                if (modalId === 'session-modal') {
-                    const sessionDateInput = document.getElementById('session-date-input');
-                    if (sessionDateInput) sessionDateInput.valueAsDate = new Date();
-                    // hide noclass reason by default when opening
-                    const reasonGroup = document.getElementById('noclass-reason-group');
-                    if (reasonGroup) reasonGroup.style.display = 'none';
-                } else if (modalId === 'student-modal') {
-                    const studentModalTitle = document.getElementById('student-modal-title');
-                    if (studentModalTitle) studentModalTitle.textContent = 'Add Student';
-                    const studentForm = document.getElementById('student-form');
-                    if (studentForm) studentForm.reset();
-                    const studentIdHidden = document.getElementById('student-id');
-                    if (studentIdHidden) studentIdHidden.value = '';
-                } else if (modalId === 'import-modal') {
-                    // reset preview & file input
-                    const csvFile = document.getElementById('csv-file');
-                    if (csvFile) csvFile.value = '';
-                    const preview = document.getElementById('preview-container');
-                    if (preview) preview.innerHTML = '<p>Preview will appear here after selecting a file</p>';
-                    const importBtn = document.getElementById('import-csv-btn');
-                    if (importBtn) importBtn.disabled = true;
-                }
-            });
-        });
 
 
-        closeButtons.forEach(button => {
-            button.addEventListener('click', function () {
-                this.closest('.modal').style.display = 'none';
-            });
-        });
+            // DOM Elements
+            const tabs = document.querySelectorAll('[data-tab]');
+            const tabContents = document.querySelectorAll('.tab-content');
+            // const modalTriggers = document.querySelectorAll('[data-modal]');
+            const modals = document.querySelectorAll('.modal');
+            const closeButtons = document.querySelectorAll('.close-btn');
 
-        window.addEventListener('click', function (e) {
-            modals.forEach(modal => {
-                if (e.target === modal) {
-                    modal.style.display = 'none';
-                }
-            });
-        });
-
-        // Event Listeners
-        function setupEventListeners() {
-            // Session status change
-            const sessionStatus = document.getElementById('session-status');
-            if (sessionStatus) {
-                sessionStatus.addEventListener('change', function () {
-                    const reasonGroup = document.getElementById('noclass-reason-group');
-                    reasonGroup.style.display = this.value === 'NoClass' ? 'block' : 'none';
-                });
-            }
-
-            // Save student
-            const saveStudentBtn = document.getElementById('save-student-btn');
-            if (saveStudentBtn) {
-                saveStudentBtn.addEventListener('click', saveStudent);
-            }
-
-            // Save session
-            const saveSessionBtn = document.getElementById('save-session-btn');
-            if (saveSessionBtn) {
-                saveSessionBtn.addEventListener('click', saveSession);
-            }
-
-            // Save assessment
-            const saveAssessmentBtn = document.getElementById('save-assessment-btn');
-            if (saveAssessmentBtn) {
-                saveAssessmentBtn.addEventListener('click', saveAssessment);
-            }
-
-            // Save scores
-            const saveScoresBtn = document.getElementById('save-scores-btn');
-            if (saveScoresBtn) {
-                saveScoresBtn.addEventListener('click', saveScores);
-            }
-
-            // Import CSV
-            const csvFile = document.getElementById('csv-file');
-            if (csvFile) {
-                csvFile.addEventListener('change', handleCSVUpload);
-            }
-
-            const importCsvBtn = document.getElementById('import-csv-btn');
-            if (importCsvBtn) {
-                importCsvBtn.addEventListener('click', importStudentsFromCSV);
-            }
-
-            // New session button
-            const newSessionBtn = document.getElementById('new-session-btn');
-            if (newSessionBtn) {
-                newSessionBtn.addEventListener('click', function () {
-                    const sessionForm = document.getElementById('session-form');
-                    if (sessionForm) {
-                        sessionForm.reset();
+            document.addEventListener('DOMContentLoaded', async function () {
+                try {
+                    // Attempt to load data (may fetch from Firestore if implemented)
+                    if (typeof loadData === 'function') {
+                        await loadData(); // loadData may be async if you added Firestore fallback
                     }
-                    const reasonGroup = document.getElementById('noclass-reason-group');
-                    if (reasonGroup) {
-                        reasonGroup.style.display = 'none';
+
+                    // Now run UI renderers
+                    if (typeof renderDashboard === 'function') renderDashboard();
+                    if (typeof renderStudentsTable === 'function') renderStudentsTable();
+                    if (typeof renderSessionsTable === 'function') renderSessionsTable();
+                    if (typeof renderAssessmentsTable === 'function') renderAssessmentsTable();
+                    if (typeof setupEventListeners === 'function') setupEventListeners();
+                    if (typeof updateReportDropdown === 'function') updateReportDropdown();
+
+                    // restore session if any (this should show the app after login)
+                    if (typeof restoreSession === 'function') restoreSession();
+                    // ensure migration buttons visibility if user already logged in
+                    if (typeof showMigrationButtonsIfAdmin === 'function') showMigrationButtonsIfAdmin();
+
+                    // If app-content is still hidden but we have a user, show it (defensive)
+                    try {
+                        const appContent = document.getElementById('app-content');
+                        const loginScreen = document.getElementById('login-screen');
+                        const cur = JSON.parse(localStorage.getItem('currentUser') || 'null');
+                        if (cur && appContent) {
+                            if (loginScreen) loginScreen.style.display = 'none';
+                            appContent.style.display = 'block';
+                        }
+                    } catch (e) { /* ignore */ }
+
+                } catch (err) {
+                    console.error('[init] initialization error', err);
+                    // show overlay with the error for visibility
+                    const overlay = document.getElementById('app-error-overlay');
+                    const msg = document.getElementById('app-error-message');
+                    if (overlay && msg) {
+                        overlay.style.display = 'block';
+                        msg.textContent = (err && err.message) ? err.message + '\n\n' + (err.stack || '') : String(err);
+                    } else {
+                        alert('Initialization error: ' + (err.message || err));
                     }
-                });
-            }
+                }
+            });
 
-            // Tabs inside attendance section
-            document.querySelectorAll('[data-tab-target]').forEach(tab => {
-                tab.addEventListener('click', function () {
-                    const target = this.getAttribute('data-tab-target');
 
-                    // Update active tab
-                    document.querySelectorAll('[data-tab-target]').forEach(t => t.classList.remove('active'));
+            // Navigation
+            tabs.forEach(tab => {
+                tab.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const targetTab = this.getAttribute('data-tab');
+
+                    // Update active tab in navigation
+                    document.querySelectorAll('[data-tab]').forEach(t => t.classList.remove('active'));
                     this.classList.add('active');
 
                     // Show corresponding content
-                    document.querySelectorAll('#attendance .tab-content').forEach(content => {
+                    tabContents.forEach(content => {
                         content.classList.remove('active');
-                        if (`#${content.id}` === target) {
+                        if (content.id === targetTab) {
                             content.classList.add('active');
                         }
                     });
+
+                    // Special handling for reports tab
+                    // Special handling when switching to attendance or reports
+                    if (targetTab === 'attendance') {
+                        renderSessionsTable();
+                        // renderAttendanceForm() only if there is a selected session; otherwise populate select
+                        renderAttendanceForm(document.getElementById('session-date')?.value || '');
+                    }
+                    if (targetTab === 'reports') {
+                        updateReportDropdown();
+                    }
+
                 });
             });
 
-            // Report student selection
-            const reportStudent = document.getElementById('report-student');
-            if (reportStudent) {
-                reportStudent.addEventListener('change', function () {
-                    const studentId = this.value;
-                    if (studentId) {
-                        generateStudentReport(studentId);
-                    } else {
-                        document.getElementById('report-content').innerHTML = '<p>Select a student to generate a report</p>';
+            // Modal triggers: any element with a data-modal attribute
+            const modalTriggers = document.querySelectorAll('[data-modal]');
+
+            modalTriggers.forEach(trigger => {
+                trigger.addEventListener('click', function (e) {
+                    e.preventDefault();
+                    const modalId = this.dataset.modal;
+                    const modalEl = document.getElementById(modalId);
+                    if (!modalEl) return console.warn('Modal not found:', modalId);
+
+                    modalEl.style.display = 'flex';
+
+                    // Special handling for different modals (keep previous logic)
+                    if (modalId === 'session-modal') {
+                        const sessionDateInput = document.getElementById('session-date-input');
+                        if (sessionDateInput) sessionDateInput.valueAsDate = new Date();
+                        // hide noclass reason by default when opening
+                        const reasonGroup = document.getElementById('noclass-reason-group');
+                        if (reasonGroup) reasonGroup.style.display = 'none';
+                    } else if (modalId === 'student-modal') {
+                        const studentModalTitle = document.getElementById('student-modal-title');
+                        if (studentModalTitle) studentModalTitle.textContent = 'Add Student';
+                        const studentForm = document.getElementById('student-form');
+                        if (studentForm) studentForm.reset();
+                        const studentIdHidden = document.getElementById('student-id');
+                        if (studentIdHidden) studentIdHidden.value = '';
+                    } else if (modalId === 'import-modal') {
+                        // reset preview & file input
+                        const csvFile = document.getElementById('csv-file');
+                        if (csvFile) csvFile.value = '';
+                        const preview = document.getElementById('preview-container');
+                        if (preview) preview.innerHTML = '<p>Preview will appear here after selecting a file</p>';
+                        const importBtn = document.getElementById('import-csv-btn');
+                        if (importBtn) importBtn.disabled = true;
                     }
                 });
-            }
+            });
 
-            // Session date selection for attendance
-            const sessionDate = document.getElementById('session-date');
-            if (sessionDate) {
-                sessionDate.addEventListener('change', function () {
-                    const sessionId = this.value;
-                    if (sessionId) {
-                        renderAttendanceForm(sessionId);
-                    } else {
-                        document.getElementById('attendance-form-container').innerHTML = '<p>Select a session to take attendance</p>';
+
+            closeButtons.forEach(button => {
+                button.addEventListener('click', function () {
+                    this.closest('.modal').style.display = 'none';
+                });
+            });
+
+            window.addEventListener('click', function (e) {
+                modals.forEach(modal => {
+                    if (e.target === modal) {
+                        modal.style.display = 'none';
                     }
                 });
+            });
+
+            // Event Listeners
+            function setupEventListeners() {
+                // Session status change
+                const sessionStatus = document.getElementById('session-status');
+                if (sessionStatus) {
+                    sessionStatus.addEventListener('change', function () {
+                        const reasonGroup = document.getElementById('noclass-reason-group');
+                        reasonGroup.style.display = this.value === 'NoClass' ? 'block' : 'none';
+                    });
+                }
+
+                // Save student
+                const saveStudentBtn = document.getElementById('save-student-btn');
+                if (saveStudentBtn) {
+                    saveStudentBtn.addEventListener('click', saveStudent);
+                }
+
+                // Save session
+                const saveSessionBtn = document.getElementById('save-session-btn');
+                if (saveSessionBtn) {
+                    saveSessionBtn.addEventListener('click', saveSession);
+                }
+
+                // Save assessment
+                const saveAssessmentBtn = document.getElementById('save-assessment-btn');
+                if (saveAssessmentBtn) {
+                    saveAssessmentBtn.addEventListener('click', saveAssessment);
+                }
+
+                // Save scores
+                const saveScoresBtn = document.getElementById('save-scores-btn');
+                if (saveScoresBtn) {
+                    saveScoresBtn.addEventListener('click', saveScores);
+                }
+
+                // Import CSV
+                const csvFile = document.getElementById('csv-file');
+                if (csvFile) {
+                    csvFile.addEventListener('change', handleCSVUpload);
+                }
+
+                const importCsvBtn = document.getElementById('import-csv-btn');
+                if (importCsvBtn) {
+                    importCsvBtn.addEventListener('click', importStudentsFromCSV);
+                }
+
+                // New session button
+                const newSessionBtn = document.getElementById('new-session-btn');
+                if (newSessionBtn) {
+                    newSessionBtn.addEventListener('click', function () {
+                        const sessionForm = document.getElementById('session-form');
+                        if (sessionForm) {
+                            sessionForm.reset();
+                        }
+                        const reasonGroup = document.getElementById('noclass-reason-group');
+                        if (reasonGroup) {
+                            reasonGroup.style.display = 'none';
+                        }
+                    });
+                }
+
+                // Tabs inside attendance section
+                document.querySelectorAll('[data-tab-target]').forEach(tab => {
+                    tab.addEventListener('click', function () {
+                        const target = this.getAttribute('data-tab-target');
+
+                        // Update active tab
+                        document.querySelectorAll('[data-tab-target]').forEach(t => t.classList.remove('active'));
+                        this.classList.add('active');
+
+                        // Show corresponding content
+                        document.querySelectorAll('#attendance .tab-content').forEach(content => {
+                            content.classList.remove('active');
+                            if (`#${content.id}` === target) {
+                                content.classList.add('active');
+                            }
+                        });
+                    });
+                });
+
+                // Report student selection
+                const reportStudent = document.getElementById('report-student');
+                if (reportStudent) {
+                    reportStudent.addEventListener('change', function () {
+                        const studentId = this.value;
+                        if (studentId) {
+                            generateStudentReport(studentId);
+                        } else {
+                            document.getElementById('report-content').innerHTML = '<p>Select a student to generate a report</p>';
+                        }
+                    });
+                }
+
+                // Session date selection for attendance
+                const sessionDate = document.getElementById('session-date');
+                if (sessionDate) {
+                    sessionDate.addEventListener('change', function () {
+                        const sessionId = this.value;
+                        if (sessionId) {
+                            renderAttendanceForm(sessionId);
+                        } else {
+                            document.getElementById('attendance-form-container').innerHTML = '<p>Select a session to take attendance</p>';
+                        }
+                    });
+                }
             }
-        }
 
-        // Data Management Functions
-        function loadData() {
-            const savedData = localStorage.getItem('catechismData');
-            if (savedData) {
-                const parsedData = JSON.parse(savedData);
-                Object.assign(DATA_MODELS, parsedData);
+            // Data Management Functions
+            function loadData() {
+                const savedData = localStorage.getItem('catechismData');
+                if (savedData) {
+                    const parsedData = JSON.parse(savedData);
+                    Object.assign(DATA_MODELS, parsedData);
+                }
             }
-        }
 
-        function saveData() {
-            localStorage.setItem('catechismData', JSON.stringify(DATA_MODELS));
-        }
+            function saveData() {
+                localStorage.setItem('catechismData', JSON.stringify(DATA_MODELS));
+            }
 
-        // Student Management
-        function renderStudentsTable() {
-            const tbody = document.querySelector('#students-table tbody');
-            if (!tbody) return;
+            // Student Management
+            function renderStudentsTable() {
+                const tbody = document.querySelector('#students-table tbody');
+                if (!tbody) return;
 
-            tbody.innerHTML = '';
+                tbody.innerHTML = '';
 
-            DATA_MODELS.students.forEach(student => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
+                DATA_MODELS.students.forEach(student => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
                     <td><a href="#" class="student-link" onclick="viewStudentDetails('${student.studentId}')">${student.studentId}</a></td>
                     <td>${student.firstName} ${student.lastName}</td>
                     <td>${student.guardian}</td>
@@ -1033,110 +1470,148 @@
                         </button>
                     </td>
                 `;
-                tbody.appendChild(row);
-            });
-
-            // Add event listeners to action buttons
-            document.querySelectorAll('.edit-student').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const studentId = this.getAttribute('data-id');
-                    editStudent(studentId);
+                    tbody.appendChild(row);
                 });
-            });
 
-            document.querySelectorAll('.delete-student').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const studentId = this.getAttribute('data-id');
-                    deleteStudent(studentId);
+                // Add event listeners to action buttons
+                document.querySelectorAll('.edit-student').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const studentId = this.getAttribute('data-id');
+                        editStudent(studentId);
+                    });
                 });
-            });
-        }
 
-        function saveStudent() {
-            const studentIdInput = document.getElementById('student-id-input').value.trim();
-            const firstName = document.getElementById('student-first-name').value.trim();
-            const lastName = document.getElementById('student-last-name').value.trim();
-            const dob = document.getElementById('student-dob').value;
-            const guardian = document.getElementById('student-guardian').value.trim();
-            const phone = document.getElementById('student-phone').value.trim();
-            const email = document.getElementById('student-email').value.trim();
-            const studentClass = document.getElementById('student-class').value.trim();
-            const notes = document.getElementById('student-notes').value.trim();
-            const id = document.getElementById('student-id').value;
-
-            // Basic validation
-            if (!firstName || !lastName || !studentIdInput || !guardian) {
-                alert('Please fill in all required fields');
-                return;
+                document.querySelectorAll('.delete-student').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const studentId = this.getAttribute('data-id');
+                        deleteStudent(studentId);
+                    });
+                });
             }
 
-            // Check for duplicate student ID
-            if (!id && DATA_MODELS.students.some(s => s.studentId === studentIdInput)) {
-                alert('A student with this ID already exists');
-                return;
-            }
+            // Save student (now persists to Firestore as well)
+            async function saveStudent() {
+                const studentIdInput = document.getElementById('student-id-input').value.trim();
+                const firstName = document.getElementById('student-first-name').value.trim();
+                const lastName = document.getElementById('student-last-name').value.trim();
+                const dob = document.getElementById('student-dob').value;
+                const guardian = document.getElementById('student-guardian').value.trim();
+                const phone = document.getElementById('student-phone').value.trim();
+                const email = document.getElementById('student-email').value.trim();
+                const studentClass = document.getElementById('student-class').value.trim();
+                const notes = document.getElementById('student-notes').value.trim();
+                const id = document.getElementById('student-id').value;
 
-            const student = {
-                studentId: studentIdInput,
-                firstName,
-                lastName,
-                dob,
-                guardian,
-                phone,
-                email,
-                class: studentClass,
-                notes
-            };
-
-            if (id) {
-                // Update existing student
-                const index = DATA_MODELS.students.findIndex(s => s.studentId === id);
-                if (index !== -1) {
-                    DATA_MODELS.students[index] = student;
+                if (!firstName || !lastName || !studentIdInput || !guardian) {
+                    alert('Please fill in all required fields');
+                    return;
                 }
-            } else {
-                // Add new student
-                DATA_MODELS.students.push(student);
-            }
 
-            saveData();
-            renderStudentsTable();
-            document.getElementById('student-modal').style.display = 'none';
-        }
+                if (!id && DATA_MODELS.students.some(s => s.studentId === studentIdInput)) {
+                    alert('A student with this ID already exists');
+                    return;
+                }
 
-        function editStudent(studentId) {
-            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
-            if (student) {
-                document.getElementById('student-id').value = student.studentId;
-                document.getElementById('student-id-input').value = student.studentId;
-                document.getElementById('student-first-name').value = student.firstName;
-                document.getElementById('student-last-name').value = student.lastName;
-                document.getElementById('student-dob').value = student.dob || '';
-                document.getElementById('student-guardian').value = student.guardian;
-                document.getElementById('student-phone').value = student.phone || '';
-                document.getElementById('student-email').value = student.email || '';
-                document.getElementById('student-class').value = student.class || '';
-                document.getElementById('student-notes').value = student.notes || '';
+                const student = {
+                    studentId: studentIdInput,
+                    firstName,
+                    lastName,
+                    dob,
+                    guardian,
+                    phone,
+                    email,
+                    class: studentClass,
+                    notes
+                };
 
-                document.getElementById('student-modal-title').textContent = 'Edit Student';
-                document.getElementById('student-modal').style.display = 'flex';
-            }
-        }
+                if (id) {
+                    // Update existing student locally
+                    const index = DATA_MODELS.students.findIndex(s => s.studentId === id);
+                    if (index !== -1) {
+                        DATA_MODELS.students[index] = student;
+                    } else {
+                        // fallback: push if not found
+                        DATA_MODELS.students.push(student);
+                    }
+                } else {
+                    // Add new student locally
+                    DATA_MODELS.students.push(student);
+                }
 
-        function deleteStudent(studentId) {
-            if (confirm('Are you sure you want to delete this student?')) {
-                DATA_MODELS.students = DATA_MODELS.students.filter(s => s.studentId !== studentId);
+                // Save local copy & refresh UI
                 saveData();
                 renderStudentsTable();
+                renderDashboard();
+                updateReportDropdown();
+
+                // Persist to Firestore (safe, non-blocking)
+                try {
+                    if (window.db && window.setDoc && window.doc) {
+                        const studentRef = window.doc(window.db, 'students', String(student.studentId));
+                        await window.setDoc(studentRef, student);
+                        console.log('[saveStudent] persisted to Firestore:', student.studentId);
+                    } else {
+                        console.warn('[saveStudent] Firestore not initialized');
+                    }
+                } catch (err) {
+                    console.error('[saveStudent] Firestore save error:', err);
+                }
+
+                // Close modal if open
+                const modal = document.getElementById('student-modal');
+                if (modal) modal.style.display = 'none';
             }
-        }
 
-        // View Student Details Popup
-        function viewStudentDetails(studentId) {
-            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
-            if (!student) return alert('Student not found.');
+            function editStudent(studentId) {
+                const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+                if (student) {
+                    document.getElementById('student-id').value = student.studentId;
+                    document.getElementById('student-id-input').value = student.studentId;
+                    document.getElementById('student-first-name').value = student.firstName;
+                    document.getElementById('student-last-name').value = student.lastName;
+                    document.getElementById('student-dob').value = student.dob || '';
+                    document.getElementById('student-guardian').value = student.guardian;
+                    document.getElementById('student-phone').value = student.phone || '';
+                    document.getElementById('student-email').value = student.email || '';
+                    document.getElementById('student-class').value = student.class || '';
+                    document.getElementById('student-notes').value = student.notes || '';
 
-            const detailsHtml = `
+                    document.getElementById('student-modal-title').textContent = 'Edit Student';
+                    document.getElementById('student-modal').style.display = 'flex';
+                }
+            }
+
+            function deleteStudent(studentId) {
+                if (!confirm('Are you sure you want to delete this student?')) return;
+
+                // Remove locally
+                DATA_MODELS.students = DATA_MODELS.students.filter(s => s.studentId !== studentId);
+                DATA_MODELS.scores = DATA_MODELS.scores.filter(sc => sc.studentId !== studentId);
+                DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.studentId !== studentId);
+
+                saveData();
+                renderStudentsTable();
+                renderDashboard();
+                updateReportDropdown();
+
+                // Try delete from Firestore
+                if (window.db && window.deleteDoc && window.doc) {
+                    const docRef = window.doc(window.db, 'students', String(studentId));
+                    window.deleteDoc(docRef)
+                        .then(() => console.log('[deleteStudent] deleted from Firestore:', studentId))
+                        .catch(err => console.warn('[deleteStudent] Firestore delete failed:', err));
+                } else {
+                    console.warn('[deleteStudent] Firestore helpers missing');
+                }
+            }
+
+
+            // View Student Details Popup
+            function viewStudentDetails(studentId) {
+                const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+                if (!student) return alert('Student not found.');
+
+                const detailsHtml = `
     <p><strong>Student ID:</strong> ${student.studentId}</p>
     <p><strong>Name:</strong> ${student.firstName} ${student.lastName}</p>
     <p><strong>Date of Birth:</strong> ${student.dob ? formatDate(student.dob) : 'N/A'}</p>
@@ -1147,40 +1622,40 @@
     <p><strong>Notes:</strong> ${student.notes || 'None'}</p>
   `;
 
-            const modal = document.getElementById('student-view-modal');
-            const detailsContainer = document.getElementById('student-details-content');
-            detailsContainer.innerHTML = detailsHtml;
-            modal.style.display = 'flex';
-        }
+                const modal = document.getElementById('student-view-modal');
+                const detailsContainer = document.getElementById('student-details-content');
+                detailsContainer.innerHTML = detailsHtml;
+                modal.style.display = 'flex';
+            }
 
-        document.getElementById('close-view-modal').addEventListener('click', () => {
-            document.getElementById('student-view-modal').style.display = 'none';
-        });
+            document.getElementById('close-view-modal').addEventListener('click', () => {
+                document.getElementById('student-view-modal').style.display = 'none';
+            });
 
-        // Session Management
-        function renderSessionsTable() {
-            const tbody = document.querySelector('#sessions-table tbody');
-            if (!tbody) return;
+            // Session Management
+            function renderSessionsTable() {
+                const tbody = document.querySelector('#sessions-table tbody');
+                if (!tbody) return;
 
-            tbody.innerHTML = '';
+                tbody.innerHTML = '';
 
-            // Sort sessions by date (newest first)
-            const sortedSessions = [...DATA_MODELS.sessions].sort((a, b) =>
-                new Date(b.date) - new Date(a.date)
-            );
+                // Sort sessions by date (newest first)
+                const sortedSessions = [...DATA_MODELS.sessions].sort((a, b) =>
+                    new Date(b.date) - new Date(a.date)
+                );
 
-            // Debug: show sessions in console
-            console.log('[renderSessionsTable] sessions (sorted):', sortedSessions);
+                // Debug: show sessions in console
+                console.log('[renderSessionsTable] sessions (sorted):', sortedSessions);
 
-            sortedSessions.forEach(session => {
-                const row = document.createElement('tr');
-                const statusBadge = session.status === 'Available'
-                    ? `<span class="status-badge status-present">Class Available</span>`
-                    : `<span class="status-badge status-noclass">No Class</span>`;
+                sortedSessions.forEach(session => {
+                    const row = document.createElement('tr');
+                    const statusBadge = session.status === 'Available'
+                        ? `<span class="status-badge status-present">Class Available</span>`
+                        : `<span class="status-badge status-noclass">No Class</span>`;
 
-                const reason = session.noClassReason || 'N/A';
+                    const reason = session.noClassReason || 'N/A';
 
-                row.innerHTML = `
+                    row.innerHTML = `
             <td>${formatDate(session.date)}</td>
             <td>${statusBadge}</td>
             <td>${reason}</td>
@@ -1195,137 +1670,137 @@
                 </button>
             </td>
         `;
-                tbody.appendChild(row);
-            });
+                    tbody.appendChild(row);
+                });
 
-            // Populate session dropdown for attendance using the same sortedSessions array
-            const sessionSelect = document.getElementById('session-date');
-            if (sessionSelect) {
-                sessionSelect.innerHTML = '<option value="">-- Select a session --</option>';
+                // Populate session dropdown for attendance using the same sortedSessions array
+                const sessionSelect = document.getElementById('session-date');
+                if (sessionSelect) {
+                    sessionSelect.innerHTML = '<option value="">-- Select a session --</option>';
 
-                sortedSessions
-                    .filter(s => s.status === 'Available')
-                    .forEach(session => {
-                        const option = document.createElement('option');
-                        option.value = session.id;
-                        // show date + short hint so user easily picks right session
-                        option.textContent = `${formatDate(session.date)} (${session.status})`;
-                        sessionSelect.appendChild(option);
+                    sortedSessions
+                        .filter(s => s.status === 'Available')
+                        .forEach(session => {
+                            const option = document.createElement('option');
+                            option.value = session.id;
+                            // show date + short hint so user easily picks right session
+                            option.textContent = `${formatDate(session.date)} (${session.status})`;
+                            sessionSelect.appendChild(option);
+                        });
+
+                    // Debug: log the select options
+                    console.log('[renderSessionsTable] populated session-select options count:', sessionSelect.options.length - 1);
+                }
+
+                // Add event listeners
+                document.querySelectorAll('.take-attendance').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const sessionId = this.getAttribute('data-id');
+                        const sessionDateSelect = document.getElementById('session-date');
+                        if (sessionDateSelect) {
+                            sessionDateSelect.value = sessionId;
+                        }
+                        renderAttendanceForm(sessionId);
+
+                        // Switch to attendance tab
+                        document.querySelectorAll('[data-tab-target]').forEach(t => t.classList.remove('active'));
+                        const takeAttendanceTab = document.querySelector('[data-tab-target="#take-attendance"]');
+                        if (takeAttendanceTab) {
+                            takeAttendanceTab.classList.add('active');
+                        }
+
+                        document.querySelectorAll('#attendance .tab-content').forEach(content => {
+                            content.classList.remove('active');
+                            if (content.id === 'take-attendance') {
+                                content.classList.add('active');
+                            }
+                        });
                     });
+                });
 
-                // Debug: log the select options
-                console.log('[renderSessionsTable] populated session-select options count:', sessionSelect.options.length - 1);
+                document.querySelectorAll('.delete-session').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const sessionId = this.getAttribute('data-id');
+                        deleteSession(sessionId);
+                    });
+                });
             }
 
-            // Add event listeners
-            document.querySelectorAll('.take-attendance').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const sessionId = this.getAttribute('data-id');
-                    const sessionDateSelect = document.getElementById('session-date');
-                    if (sessionDateSelect) {
-                        sessionDateSelect.value = sessionId;
+            function saveSession() {
+                const dateInput = document.getElementById('session-date-input');
+                const statusSelect = document.getElementById('session-status');
+
+                if (!dateInput || !statusSelect) return;
+
+                const date = dateInput.value;
+                const status = statusSelect.value;
+                let noClassReason = null;
+
+                if (status === 'NoClass') {
+                    const reasonSelect = document.getElementById('noclass-reason');
+                    if (reasonSelect) {
+                        noClassReason = reasonSelect.value;
                     }
-                    renderAttendanceForm(sessionId);
+                }
 
-                    // Switch to attendance tab
-                    document.querySelectorAll('[data-tab-target]').forEach(t => t.classList.remove('active'));
-                    const takeAttendanceTab = document.querySelector('[data-tab-target="#take-attendance"]');
-                    if (takeAttendanceTab) {
-                        takeAttendanceTab.classList.add('active');
-                    }
+                if (!date) {
+                    alert('Please select a date');
+                    return;
+                }
 
-                    document.querySelectorAll('#attendance .tab-content').forEach(content => {
-                        content.classList.remove('active');
-                        if (content.id === 'take-attendance') {
-                            content.classList.add('active');
-                        }
-                    });
-                });
-            });
+                // Check for duplicate session date
+                if (DATA_MODELS.sessions.some(s => s.date === date)) {
+                    alert('A session already exists for this date');
+                    return;
+                }
 
-            document.querySelectorAll('.delete-session').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const sessionId = this.getAttribute('data-id');
-                    deleteSession(sessionId);
-                });
-            });
-        }
+                const session = {
+                    id: generateId(),
+                    date,
+                    status,
+                    noClassReason,
+                    createdAt: new Date().toISOString()
+                };
 
-        function saveSession() {
-            const dateInput = document.getElementById('session-date-input');
-            const statusSelect = document.getElementById('session-status');
+                // Debug: log session about to be saved
+                console.log('[saveSession] creating session:', session);
 
-            if (!dateInput || !statusSelect) return;
+                DATA_MODELS.sessions.push(session);
+                saveData();
 
-            const date = dateInput.value;
-            const status = statusSelect.value;
-            let noClassReason = null;
+                // Re-render everything that depends on sessions
+                renderSessionsTable();
+                renderDashboard();
 
-            if (status === 'NoClass') {
-                const reasonSelect = document.getElementById('noclass-reason');
-                if (reasonSelect) {
-                    noClassReason = reasonSelect.value;
+                // Close modal and reset
+                const sessionModal = document.getElementById('session-modal');
+                if (sessionModal) sessionModal.style.display = 'none';
+                if (dateInput) dateInput.value = '';
+
+                // Debug: confirm saved session persisted
+                console.log('[saveSession] sessions after save:', DATA_MODELS.sessions);
+            }
+
+            function deleteSession(sessionId) {
+                if (confirm('Are you sure you want to delete this session? All attendance records for this session will be lost.')) {
+                    DATA_MODELS.sessions = DATA_MODELS.sessions.filter(s => s.id !== sessionId);
+                    DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.sessionId !== sessionId);
+                    saveData();
+                    renderSessionsTable();
                 }
             }
 
-            if (!date) {
-                alert('Please select a date');
-                return;
-            }
+            // Attendance Management
+            function renderAttendanceForm(sessionId) {
+                const session = DATA_MODELS.sessions.find(s => s.id === sessionId);
+                if (!session) return;
 
-            // Check for duplicate session date
-            if (DATA_MODELS.sessions.some(s => s.date === date)) {
-                alert('A session already exists for this date');
-                return;
-            }
+                const container = document.getElementById('attendance-form-container');
+                if (!container) return;
 
-            const session = {
-                id: generateId(),
-                date,
-                status,
-                noClassReason,
-                createdAt: new Date().toISOString()
-            };
+                let html = `<h3>Take Attendance for ${formatDate(session.date)}</h3>`;
 
-            // Debug: log session about to be saved
-            console.log('[saveSession] creating session:', session);
-
-            DATA_MODELS.sessions.push(session);
-            saveData();
-
-            // Re-render everything that depends on sessions
-            renderSessionsTable();
-            renderDashboard();
-
-            // Close modal and reset
-            const sessionModal = document.getElementById('session-modal');
-            if (sessionModal) sessionModal.style.display = 'none';
-            if (dateInput) dateInput.value = '';
-
-            // Debug: confirm saved session persisted
-            console.log('[saveSession] sessions after save:', DATA_MODELS.sessions);
-        }
-
-        function deleteSession(sessionId) {
-            if (confirm('Are you sure you want to delete this session? All attendance records for this session will be lost.')) {
-                DATA_MODELS.sessions = DATA_MODELS.sessions.filter(s => s.id !== sessionId);
-                DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.sessionId !== sessionId);
-                saveData();
-                renderSessionsTable();
-            }
-        }
-
-        // Attendance Management
-        function renderAttendanceForm(sessionId) {
-            const session = DATA_MODELS.sessions.find(s => s.id === sessionId);
-            if (!session) return;
-
-            const container = document.getElementById('attendance-form-container');
-            if (!container) return;
-
-            let html = `<h3>Take Attendance for ${formatDate(session.date)}</h3>`;
-
-            html += `<div class="form-group">
+                html += `<div class="form-group">
                 <label>Select Status for All Students:</label>
                 <div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
                     <button class="btn btn-success btn-sm" onclick="setAllStatus('${sessionId}', 'Present')">All Present</button>
@@ -1335,17 +1810,17 @@
                 </div>
             </div>`;
 
-            html += '<table><thead><tr><th>Student</th><th>Status</th></tr></thead><tbody>';
+                html += '<table><thead><tr><th>Student</th><th>Status</th></tr></thead><tbody>';
 
-            DATA_MODELS.students.forEach(student => {
-                // Get existing attendance record for this student and session
-                const existing = DATA_MODELS.attendance.find(a =>
-                    a.sessionId === sessionId && a.studentId === student.studentId
-                );
+                DATA_MODELS.students.forEach(student => {
+                    // Get existing attendance record for this student and session
+                    const existing = DATA_MODELS.attendance.find(a =>
+                        a.sessionId === sessionId && a.studentId === student.studentId
+                    );
 
-                const status = existing ? existing.status : 'Present';
+                    const status = existing ? existing.status : 'Present';
 
-                html += `
+                    html += `
                     <tr>
                         <td>${student.firstName} ${student.lastName} (${student.studentId})</td>
                         <td>
@@ -1358,61 +1833,61 @@
                         </td>
                     </tr>
                 `;
-            });
-
-            html += '</tbody></table>';
-            html += '<button class="btn btn-primary" onclick="saveAttendance(\'' + sessionId + '\')">Save Attendance</button>';
-
-            container.innerHTML = html;
-        }
-
-        // Global functions for attendance form
-        function setAllStatus(sessionId, status) {
-            document.querySelectorAll('.attendance-status').forEach(select => {
-                select.value = status;
-            });
-        }
-
-        function saveAttendance(sessionId) {
-            // Remove existing attendance records for this session
-            DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.sessionId !== sessionId);
-
-            // Add new attendance records
-            document.querySelectorAll('.attendance-status').forEach(select => {
-                const studentId = select.getAttribute('data-student');
-                const status = select.value;
-
-                DATA_MODELS.attendance.push({
-                    sessionId,
-                    studentId,
-                    status
                 });
-            });
 
-            saveData();
-            alert('Attendance saved successfully!');
-        }
+                html += '</tbody></table>';
+                html += '<button class="btn btn-primary" onclick="saveAttendance(\'' + sessionId + '\')">Save Attendance</button>';
 
-        // Assessment Management
-        function renderAssessmentsTable() {
-            const tbody = document.querySelector('#assessments-table tbody');
-            if (!tbody) return;
+                container.innerHTML = html;
+            }
 
-            tbody.innerHTML = '';
+            // Global functions for attendance form
+            function setAllStatus(sessionId, status) {
+                document.querySelectorAll('.attendance-status').forEach(select => {
+                    select.value = status;
+                });
+            }
 
-            // Sort assessments by date (newest first)
-            const sortedAssessments = [...DATA_MODELS.assessments].sort((a, b) =>
-                new Date(b.date) - new Date(a.date)
-            );
+            function saveAttendance(sessionId) {
+                // Remove existing attendance records for this session
+                DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.sessionId !== sessionId);
 
-            sortedAssessments.forEach(assessment => {
-                // Count how many students have scores for this assessment
-                const scoredStudents = DATA_MODELS.scores
-                    .filter(score => score.assessmentId === assessment.id)
-                    .length;
+                // Add new attendance records
+                document.querySelectorAll('.attendance-status').forEach(select => {
+                    const studentId = select.getAttribute('data-student');
+                    const status = select.value;
 
-                const row = document.createElement('tr');
-                row.innerHTML = `
+                    DATA_MODELS.attendance.push({
+                        sessionId,
+                        studentId,
+                        status
+                    });
+                });
+
+                saveData();
+                alert('Attendance saved successfully!');
+            }
+
+            // Assessment Management
+            function renderAssessmentsTable() {
+                const tbody = document.querySelector('#assessments-table tbody');
+                if (!tbody) return;
+
+                tbody.innerHTML = '';
+
+                // Sort assessments by date (newest first)
+                const sortedAssessments = [...DATA_MODELS.assessments].sort((a, b) =>
+                    new Date(b.date) - new Date(a.date)
+                );
+
+                sortedAssessments.forEach(assessment => {
+                    // Count how many students have scores for this assessment
+                    const scoredStudents = DATA_MODELS.scores
+                        .filter(score => score.assessmentId === assessment.id)
+                        .length;
+
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
                     <td>${assessment.name}</td>
                     <td>${formatDate(assessment.date)}</td>
                     <td>${assessment.totalMarks}</td>
@@ -1426,84 +1901,84 @@
                         </button>
                     </td>
                 `;
-                tbody.appendChild(row);
-            });
-
-            // Add event listeners
-            document.querySelectorAll('.record-scores').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const assessmentId = this.getAttribute('data-id');
-                    openScoresModal(assessmentId);
+                    tbody.appendChild(row);
                 });
-            });
 
-            document.querySelectorAll('.delete-assessment').forEach(btn => {
-                btn.addEventListener('click', function () {
-                    const assessmentId = this.getAttribute('data-id');
-                    deleteAssessment(assessmentId);
+                // Add event listeners
+                document.querySelectorAll('.record-scores').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const assessmentId = this.getAttribute('data-id');
+                        openScoresModal(assessmentId);
+                    });
                 });
-            });
-        }
 
-        function saveAssessment() {
-            const nameInput = document.getElementById('assessment-name');
-            const dateInput = document.getElementById('assessment-date');
-            const totalMarksInput = document.getElementById('assessment-total-marks');
-
-            if (!nameInput || !dateInput || !totalMarksInput) return;
-
-            const name = nameInput.value.trim();
-            const date = dateInput.value;
-            const totalMarks = parseInt(totalMarksInput.value);
-
-            if (!name || !date || isNaN(totalMarks) || totalMarks <= 0) {
-                alert('Please fill in all required fields correctly');
-                return;
+                document.querySelectorAll('.delete-assessment').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        const assessmentId = this.getAttribute('data-id');
+                        deleteAssessment(assessmentId);
+                    });
+                });
             }
 
-            const assessment = {
-                id: generateId(),
-                name,
-                date,
-                totalMarks
-            };
+            function saveAssessment() {
+                const nameInput = document.getElementById('assessment-name');
+                const dateInput = document.getElementById('assessment-date');
+                const totalMarksInput = document.getElementById('assessment-total-marks');
 
-            DATA_MODELS.assessments.push(assessment);
-            saveData();
-            renderAssessmentsTable();
-            document.getElementById('assessment-modal').style.display = 'none';
-        }
+                if (!nameInput || !dateInput || !totalMarksInput) return;
 
-        function deleteAssessment(assessmentId) {
-            if (confirm('Are you sure you want to delete this assessment? All scores for this assessment will be lost.')) {
-                DATA_MODELS.assessments = DATA_MODELS.assessments.filter(a => a.id !== assessmentId);
-                DATA_MODELS.scores = DATA_MODELS.scores.filter(s => s.assessmentId !== assessmentId);
+                const name = nameInput.value.trim();
+                const date = dateInput.value;
+                const totalMarks = parseInt(totalMarksInput.value);
+
+                if (!name || !date || isNaN(totalMarks) || totalMarks <= 0) {
+                    alert('Please fill in all required fields correctly');
+                    return;
+                }
+
+                const assessment = {
+                    id: generateId(),
+                    name,
+                    date,
+                    totalMarks
+                };
+
+                DATA_MODELS.assessments.push(assessment);
                 saveData();
                 renderAssessmentsTable();
+                document.getElementById('assessment-modal').style.display = 'none';
             }
-        }
 
-        function openScoresModal(assessmentId) {
-            const assessment = DATA_MODELS.assessments.find(a => a.id === assessmentId);
-            if (!assessment) return;
+            function deleteAssessment(assessmentId) {
+                if (confirm('Are you sure you want to delete this assessment? All scores for this assessment will be lost.')) {
+                    DATA_MODELS.assessments = DATA_MODELS.assessments.filter(a => a.id !== assessmentId);
+                    DATA_MODELS.scores = DATA_MODELS.scores.filter(s => s.assessmentId !== assessmentId);
+                    saveData();
+                    renderAssessmentsTable();
+                }
+            }
 
-            const container = document.getElementById('scores-form-container');
-            if (!container) return;
+            function openScoresModal(assessmentId) {
+                const assessment = DATA_MODELS.assessments.find(a => a.id === assessmentId);
+                if (!assessment) return;
 
-            let html = `<h3>Record Scores for ${assessment.name}</h3>`;
-            html += `<p>Date: ${formatDate(assessment.date)} | Total Marks: ${assessment.totalMarks}</p>`;
+                const container = document.getElementById('scores-form-container');
+                if (!container) return;
 
-            html += '<table><thead><tr><th>Student</th><th>Score</th></tr></thead><tbody>';
+                let html = `<h3>Record Scores for ${assessment.name}</h3>`;
+                html += `<p>Date: ${formatDate(assessment.date)} | Total Marks: ${assessment.totalMarks}</p>`;
 
-            DATA_MODELS.students.forEach(student => {
-                // Get existing score for this student and assessment
-                const existing = DATA_MODELS.scores.find(s =>
-                    s.assessmentId === assessmentId && s.studentId === student.studentId
-                );
+                html += '<table><thead><tr><th>Student</th><th>Score</th></tr></thead><tbody>';
 
-                const score = existing ? existing.marks : '';
+                DATA_MODELS.students.forEach(student => {
+                    // Get existing score for this student and assessment
+                    const existing = DATA_MODELS.scores.find(s =>
+                        s.assessmentId === assessmentId && s.studentId === student.studentId
+                    );
 
-                html += `
+                    const score = existing ? existing.marks : '';
+
+                    html += `
                     <tr>
                         <td>${student.firstName} ${student.lastName} (${student.studentId})</td>
                         <td>
@@ -1513,98 +1988,160 @@
                         </td>
                     </tr>
                 `;
-            });
+                });
 
-            html += '</tbody></table>';
-            container.innerHTML = html;
+                html += '</tbody></table>';
+                container.innerHTML = html;
 
-            document.getElementById('scores-modal').style.display = 'flex';
-        }
+                document.getElementById('scores-modal').style.display = 'flex';
+            }
 
-        function saveScores() {
-            const container = document.getElementById('scores-form-container');
-            if (!container) return;
+            // Save scores and persist to Firestore (robust)
+            async function saveScores() {
+                // Gather form values (adapt if your form inputs have different ids)
+                const assessmentSelect = document.getElementById('scores-assessment-select');
+                if (!assessmentSelect) return alert('Assessment select not found');
+                const assessmentId = assessmentSelect.value;
+                if (!assessmentId) return alert('Select an assessment');
 
-            const heading = container.querySelector('h3');
-            if (!heading) return;
+                // Collect all student score inputs inside your scores form container
+                const rows = document.querySelectorAll('.scores-row'); // ensure your rows have this class
+                if (!rows || rows.length === 0) return alert('No scores to save');
 
-            const assessmentName = heading.textContent.replace('Record Scores for ', '');
-            const assessment = DATA_MODELS.assessments.find(a => a.name === assessmentName);
-
-            if (!assessment) return;
-
-            // Remove existing scores for this assessment
-            DATA_MODELS.scores = DATA_MODELS.scores.filter(s => s.assessmentId !== assessment.id);
-
-            // Add new scores
-            document.querySelectorAll('.score-input').forEach(input => {
-                const studentId = input.getAttribute('data-student');
-                const score = parseInt(input.value);
-
-                if (!isNaN(score) && score >= 0 && score <= assessment.totalMarks) {
-                    DATA_MODELS.scores.push({
-                        assessmentId: assessment.id,
+                // For each row, read studentId and marks
+                const toWrite = [];
+                rows.forEach(row => {
+                    const studentId = row.dataset.studentId || row.querySelector('.score-student-id')?.textContent;
+                    const marksInput = row.querySelector('.score-input');
+                    if (!studentId || !marksInput) return;
+                    const marks = marksInput.value === '' ? null : Number(marksInput.value);
+                    const scoreObj = {
+                        assessmentId,
                         studentId,
-                        marks: score
-                    });
+                        marks,
+                        updatedAt: new Date().toISOString()
+                    };
+                    toWrite.push(scoreObj);
+                });
+
+                // Update local DATA_MODELS.scores (upsert by assessmentId+studentId)
+                for (const s of toWrite) {
+                    const idx = DATA_MODELS.scores.findIndex(x => x.assessmentId === s.assessmentId && x.studentId === s.studentId);
+                    if (idx === -1) DATA_MODELS.scores.push(s);
+                    else DATA_MODELS.scores[idx] = s;
                 }
-            });
+                saveData();
 
-            saveData();
-            renderAssessmentsTable();
-            document.getElementById('scores-modal').style.display = 'none';
-            alert('Scores saved successfully!');
-        }
+                // Persist each to Firestore using stable doc id = assessmentId_studentId
+                if (window.db && window.setDoc && window.doc) {
+                    try {
+                        const promises = toWrite.map(s => {
+                            const docId = `${s.assessmentId}_${s.studentId}`;
+                            const docRef = window.doc(window.db, 'scores', docId);
+                            return window.setDoc(docRef, s);
+                        });
+                        await Promise.all(promises);
+                        console.log('[saveScores] persisted', toWrite.length, 'scores to Firestore');
+                    } catch (err) {
+                        console.error('[saveScores] Firestore error:', err);
+                        // keep local state even if Firestore fails
+                    }
+                } else {
+                    console.warn('[saveScores] Firestore helpers missing; saved locally only');
+                }
 
-        // Report Generation
-        function updateReportDropdown() {
-            const select = document.getElementById('report-student');
-            if (!select) return;
+                // UI refresh
+                renderAssessmentsTable();
+                // close modal if you use one
+                const modal = document.getElementById('scores-modal');
+                if (modal) modal.style.display = 'none';
+            }
 
-            select.innerHTML = '<option value="">-- Select a student --</option>';
 
-            DATA_MODELS.students.forEach(student => {
-                const option = document.createElement('option');
-                option.value = student.studentId;
-                option.textContent = `${student.firstName} ${student.lastName} (${student.studentId})`;
-                select.appendChild(option);
-            });
-        }
+            // function saveScores() {
+            //     const container = document.getElementById('scores-form-container');
+            //     if (!container) return;
 
-        function generateStudentReport(studentId) {
-            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
-            if (!student) return;
+            //     const heading = container.querySelector('h3');
+            //     if (!heading) return;
 
-            const container = document.getElementById('report-content');
-            if (!container) return;
+            //     const assessmentName = heading.textContent.replace('Record Scores for ', '');
+            //     const assessment = DATA_MODELS.assessments.find(a => a.name === assessmentName);
 
-            // Calculate attendance statistics
-            const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
-            const totalSessionsHeld = availableSessions.length;
+            //     if (!assessment) return;
 
-            const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === studentId);
-            const presentCount = studentAttendance.filter(a =>
-                a.status === 'Present' || a.status === 'Late'
-            ).length;
+            //     // Remove existing scores for this assessment
+            //     DATA_MODELS.scores = DATA_MODELS.scores.filter(s => s.assessmentId !== assessment.id);
 
-            const attendancePercentage = totalSessionsHeld > 0
-                ? Math.round((presentCount / totalSessionsHeld) * 100)
-                : 0;
+            //     // Add new scores
+            //     document.querySelectorAll('.score-input').forEach(input => {
+            //         const studentId = input.getAttribute('data-student');
+            //         const score = parseInt(input.value);
 
-            // Get student's assessments and scores
-            const studentScores = DATA_MODELS.scores.filter(s => s.studentId === studentId);
-            const assessmentDetails = studentScores.map(score => {
-                const assessment = DATA_MODELS.assessments.find(a => a.id === score.assessmentId);
-                return {
-                    name: assessment ? assessment.name : 'Unknown',
-                    date: assessment ? assessment.date : '',
-                    totalMarks: assessment ? assessment.totalMarks : 0,
-                    marks: score.marks
-                };
-            }).sort((a, b) => new Date(a.date) - new Date(b.date));
+            //         if (!isNaN(score) && score >= 0 && score <= assessment.totalMarks) {
+            //             DATA_MODELS.scores.push({
+            //                 assessmentId: assessment.id,
+            //                 studentId,
+            //                 marks: score
+            //             });
+            //         }
+            //     });
 
-            // Generate HTML for report
-            let html = `
+            //     saveData();
+            //     renderAssessmentsTable();
+            //     document.getElementById('scores-modal').style.display = 'none';
+            //     alert('Scores saved successfully!');
+            // }
+
+            // Report Generation
+            function updateReportDropdown() {
+                const select = document.getElementById('report-student');
+                if (!select) return;
+
+                select.innerHTML = '<option value="">-- Select a student --</option>';
+
+                DATA_MODELS.students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.studentId;
+                    option.textContent = `${student.firstName} ${student.lastName} (${student.studentId})`;
+                    select.appendChild(option);
+                });
+            }
+
+            function generateStudentReport(studentId) {
+                const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+                if (!student) return;
+
+                const container = document.getElementById('report-content');
+                if (!container) return;
+
+                // Calculate attendance statistics
+                const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+                const totalSessionsHeld = availableSessions.length;
+
+                const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === studentId);
+                const presentCount = studentAttendance.filter(a =>
+                    a.status === 'Present' || a.status === 'Late'
+                ).length;
+
+                const attendancePercentage = totalSessionsHeld > 0
+                    ? Math.round((presentCount / totalSessionsHeld) * 100)
+                    : 0;
+
+                // Get student's assessments and scores
+                const studentScores = DATA_MODELS.scores.filter(s => s.studentId === studentId);
+                const assessmentDetails = studentScores.map(score => {
+                    const assessment = DATA_MODELS.assessments.find(a => a.id === score.assessmentId);
+                    return {
+                        name: assessment ? assessment.name : 'Unknown',
+                        date: assessment ? assessment.date : '',
+                        totalMarks: assessment ? assessment.totalMarks : 0,
+                        marks: score.marks
+                    };
+                }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                // Generate HTML for report
+                let html = `
                 <div class="print-only">
                     <h2>Student Report</h2>
                     <p>Generated on: ${formatDate(new Date().toISOString())}</p>
@@ -1689,54 +2226,54 @@
 
             `;
 
-            container.innerHTML = html;
+                container.innerHTML = html;
 
-            // Render charts
-            setTimeout(() => {
-                renderMarksChart(assessmentDetails);
-                renderAttendanceChart(studentId);
-            }, 100);
-        }
-
-        // Replace the existing downloadReportPDF(studentId) with this improved version
-        function downloadReportPDF(studentId) {
-            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
-            if (!student) { alert('Student not found'); return; }
-
-            const reportContainer = document.getElementById('report-content');
-            if (!reportContainer) { alert('Report not generated yet. Click "Generate Student Report" first.'); return; }
-
-            // --- 1) grab snapshot images from the live Chart.js instances (if any) ---
-            let marksDataUrl = null;
-            let attendanceDataUrl = null;
-            try {
-                if (window.marksChart && typeof window.marksChart.toBase64Image === 'function') {
-                    marksDataUrl = window.marksChart.toBase64Image();
-                }
-            } catch (e) {
-                console.warn('Could not get marks chart image:', e);
-            }
-            try {
-                if (window.attendanceChart && typeof window.attendanceChart.toBase64Image === 'function') {
-                    attendanceDataUrl = window.attendanceChart.toBase64Image();
-                }
-            } catch (e) {
-                console.warn('Could not get attendance chart image:', e);
+                // Render charts
+                setTimeout(() => {
+                    renderMarksChart(assessmentDetails);
+                    renderAttendanceChart(studentId);
+                }, 100);
             }
 
-            // --- 2) clone the report DOM so we don't mutate the UI ---
-            const clone = reportContainer.cloneNode(true);
+            // Replace the existing downloadReportPDF(studentId) with this improved version
+            function downloadReportPDF(studentId) {
+                const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+                if (!student) { alert('Student not found'); return; }
 
-            // remove interactive UI from the clone
-            clone.querySelectorAll('button, input, select, .no-print').forEach(n => n.remove());
+                const reportContainer = document.getElementById('report-content');
+                if (!reportContainer) { alert('Report not generated yet. Click "Generate Student Report" first.'); return; }
 
-            // Insert a nicer header (logo, student name, generated date)
-            const header = document.createElement('div');
-            header.style.display = 'flex';
-            header.style.alignItems = 'center';
-            header.style.justifyContent = 'space-between';
-            header.style.marginBottom = '12px';
-            header.innerHTML = `
+                // --- 1) grab snapshot images from the live Chart.js instances (if any) ---
+                let marksDataUrl = null;
+                let attendanceDataUrl = null;
+                try {
+                    if (window.marksChart && typeof window.marksChart.toBase64Image === 'function') {
+                        marksDataUrl = window.marksChart.toBase64Image();
+                    }
+                } catch (e) {
+                    console.warn('Could not get marks chart image:', e);
+                }
+                try {
+                    if (window.attendanceChart && typeof window.attendanceChart.toBase64Image === 'function') {
+                        attendanceDataUrl = window.attendanceChart.toBase64Image();
+                    }
+                } catch (e) {
+                    console.warn('Could not get attendance chart image:', e);
+                }
+
+                // --- 2) clone the report DOM so we don't mutate the UI ---
+                const clone = reportContainer.cloneNode(true);
+
+                // remove interactive UI from the clone
+                clone.querySelectorAll('button, input, select, .no-print').forEach(n => n.remove());
+
+                // Insert a nicer header (logo, student name, generated date)
+                const header = document.createElement('div');
+                header.style.display = 'flex';
+                header.style.alignItems = 'center';
+                header.style.justifyContent = 'space-between';
+                header.style.marginBottom = '12px';
+                header.innerHTML = `
         <div style="display:flex;align-items:center;gap:12px">
             <div style="width:56px;height:56px;border-radius:8px;background:#3498db;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px">
                 &#x271D;
@@ -1748,41 +2285,41 @@
         </div>
         <div style="text-align:right; font-size:12px; color:#666">Catechism Class — Student Reports</div>
     `;
-            clone.insertBefore(header, clone.firstChild);
+                clone.insertBefore(header, clone.firstChild);
 
-            // --- 3) replace cloned <canvas> elements with <img> using captured data URLs ---
-            // helper to replace a canvas node (if present)
-            function replaceCanvasWithImage(containerClone, selectorId, dataUrl) {
-                const canvasNode = containerClone.querySelector(`#${selectorId}`);
-                if (!canvasNode) return;
-                const img = document.createElement('img');
-                img.style.width = '100%';
-                img.style.maxWidth = '100%';
-                img.style.display = 'block';
-                img.style.margin = '8px 0';
-                img.alt = selectorId;
-                if (dataUrl) {
-                    img.src = dataUrl;
-                } else {
-                    // fallback: small placeholder if chart not available
-                    img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
-                        `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300">
+                // --- 3) replace cloned <canvas> elements with <img> using captured data URLs ---
+                // helper to replace a canvas node (if present)
+                function replaceCanvasWithImage(containerClone, selectorId, dataUrl) {
+                    const canvasNode = containerClone.querySelector(`#${selectorId}`);
+                    if (!canvasNode) return;
+                    const img = document.createElement('img');
+                    img.style.width = '100%';
+                    img.style.maxWidth = '100%';
+                    img.style.display = 'block';
+                    img.style.margin = '8px 0';
+                    img.alt = selectorId;
+                    if (dataUrl) {
+                        img.src = dataUrl;
+                    } else {
+                        // fallback: small placeholder if chart not available
+                        img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+                            `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300">
                     <rect width="100%" height="100%" fill="#f5f7fa"/>
                     <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#999" font-family="Arial" font-size="18">
                         Chart not available
                     </text>
                 </svg>`
-                    );
+                        );
+                    }
+                    canvasNode.parentNode.replaceChild(img, canvasNode);
                 }
-                canvasNode.parentNode.replaceChild(img, canvasNode);
-            }
 
-            replaceCanvasWithImage(clone, 'marks-chart', marksDataUrl);
-            replaceCanvasWithImage(clone, 'attendance-chart', attendanceDataUrl);
+                replaceCanvasWithImage(clone, 'marks-chart', marksDataUrl);
+                replaceCanvasWithImage(clone, 'attendance-chart', attendanceDataUrl);
 
-            // --- 4) inject lightweight print CSS into the clone (so tables & headings look good) ---
-            const styleEl = document.createElement('style');
-            styleEl.innerHTML = `
+                // --- 4) inject lightweight print CSS into the clone (so tables & headings look good) ---
+                const styleEl = document.createElement('style');
+                styleEl.innerHTML = `
         body{font-family: Arial, sans-serif; color:#222}
         .report-section h3 { color: #2c3e50; margin-bottom:8px; }
         table { width:100%; border-collapse: collapse; margin-bottom:12px; }
@@ -1792,510 +2329,662 @@
         /* tighten spacing for PDF */
         .chart-container { height: 280px; margin-bottom: 8px; }
     `;
-            // add style into a wrapper so html2pdf picks it up
-            const wrapper = document.createElement('div');
-            wrapper.style.width = '1100px'; // wider for landscape PDF
-            wrapper.style.margin = '0 auto';
-            wrapper.style.background = '#fff';
-            wrapper.style.padding = '18px';
-            wrapper.appendChild(styleEl);
-            wrapper.appendChild(clone);
+                // add style into a wrapper so html2pdf picks it up
+                const wrapper = document.createElement('div');
+                wrapper.style.width = '1100px'; // wider for landscape PDF
+                wrapper.style.margin = '0 auto';
+                wrapper.style.background = '#fff';
+                wrapper.style.padding = '18px';
+                wrapper.appendChild(styleEl);
+                wrapper.appendChild(clone);
 
-            // --- 5) configure html2pdf options (landscape for wide charts + higher scale for clarity) ---
-            const filename = `Report_${student.studentId}_${(new Date()).toISOString().slice(0, 10)}.pdf`;
-            const opt = {
-                margin: [10, 10, 10, 10], // mm
-                filename: filename,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2.5, useCORS: true, logging: false, allowTaint: true },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
-            };
-
-            // Visual feedback for user (if a button exists in the page)
-            const exportBtn = document.querySelector('.no-print button[onclick^="downloadReportPDF"]');
-            if (exportBtn) { exportBtn.disabled = true; const oldText = exportBtn.textContent; exportBtn.textContent = 'Generating PDF...'; }
-
-            // --- 6) generate PDF ---
-            html2pdf().set(opt).from(wrapper).save().then(() => {
-                if (exportBtn) { exportBtn.disabled = false; exportBtn.textContent = 'Export as PDF'; }
-            }).catch(err => {
-                console.error('PDF export failed', err);
-                alert('Failed to generate PDF. See console for details.');
-                if (exportBtn) { exportBtn.disabled = false; exportBtn.textContent = 'Export as PDF'; }
-            });
-        }
-
-        // small helper to safely escape HTML content for header text
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]); });
-        }
-
-        function renderMarksChart(assessmentDetails) {
-            const canvas = document.getElementById('marks-chart');
-            if (!canvas) return;
-
-            const ctx = canvas.getContext('2d');
-
-            // Destroy existing chart if it exists
-            if (window.marksChart) {
-                window.marksChart.destroy();
-            }
-
-            // Prepare data
-            const labels = assessmentDetails.map(d => d.name);
-            const percentages = assessmentDetails.map(d => Math.round((d.marks / d.totalMarks) * 100));
-
-            window.marksChart = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Performance (%)',
-                        data: percentages,
-                        borderColor: '#3498db',
-                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: 'Percentage'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function renderAttendanceChart(studentId) {
-            const canvas = document.getElementById('attendance-chart');
-            if (!canvas) return;
-
-            const ctx = canvas.getContext('2d');
-
-            // Destroy existing chart if it exists
-            if (window.attendanceChart) {
-                window.attendanceChart.destroy();
-            }
-
-            // Group attendance by month
-            const monthlyAttendance = {};
-
-            DATA_MODELS.sessions
-                .filter(s => s.status === 'Available')
-                .forEach(session => {
-                    const month = session.date.substring(0, 7); // YYYY-MM
-                    if (!monthlyAttendance[month]) {
-                        monthlyAttendance[month] = { total: 0, present: 0 };
-                    }
-                    monthlyAttendance[month].total++;
-
-                    const attendance = DATA_MODELS.attendance.find(a =>
-                        a.sessionId === session.id && a.studentId === studentId
-                    );
-
-                    if (attendance && (attendance.status === 'Present' || attendance.status === 'Late')) {
-                        monthlyAttendance[month].present++;
-                    }
-                });
-
-            // Prepare data
-            const months = Object.keys(monthlyAttendance).sort();
-            const percentages = months.map(month => {
-                const data = monthlyAttendance[month];
-                return data.total > 0 ? Math.round((data.present / data.total) * 100) : 0;
-            });
-
-            window.attendanceChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: months.map(m => m.replace('-', '/')),
-                    datasets: [{
-                        label: 'Attendance (%)',
-                        data: percentages,
-                        backgroundColor: '#27ae60',
-                        borderColor: '#219653',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            max: 100,
-                            title: {
-                                display: true,
-                                text: 'Percentage'
-                            }
-                        }
-                    }
-                }
-            });
-        }
-
-        function exportStudentReport(studentId) {
-            const student = DATA_MODELS.students.find(s => s.studentId === studentId);
-            if (!student) return;
-
-            // Create CSV content
-            let csvContent = "Student Report\n";
-            csvContent += `Generated on:,${formatDate(new Date().toISOString())}\n\n`;
-
-            csvContent += "Student Information\n";
-            csvContent += "Field,Value\n";
-            csvContent += `Student ID,${student.studentId}\n`;
-            csvContent += `Name,${student.firstName} ${student.lastName}\n`;
-            csvContent += `Date of Birth,${student.dob ? formatDate(student.dob) : 'N/A'}\n`;
-            csvContent += `Class/Section,${student.class || 'N/A'}\n`;
-            csvContent += `Guardian,${student.guardian}\n`;
-            csvContent += `Phone,${student.phone || 'N/A'}\n`;
-            csvContent += `Email,${student.email || 'N/A'}\n`;
-            csvContent += `Notes,${student.notes || 'None'}\n\n`;
-
-            // Attendance summary
-            const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
-            const totalSessionsHeld = availableSessions.length;
-
-            const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === studentId);
-            const presentCount = studentAttendance.filter(a =>
-                a.status === 'Present' || a.status === 'Late'
-            ).length;
-
-            const attendancePercentage = totalSessionsHeld > 0
-                ? Math.round((presentCount / totalSessionsHeld) * 100)
-                : 0;
-
-            csvContent += "Attendance Summary\n";
-            csvContent += "Metric,Value\n";
-            csvContent += `Total Classes Held,${totalSessionsHeld}\n`;
-            csvContent += `Sessions Attended,${presentCount}\n`;
-            csvContent += `Attendance Percentage,${attendancePercentage}%\n\n`;
-
-            // Assessment history
-            const studentScores = DATA_MODELS.scores.filter(s => s.studentId === studentId);
-            const assessmentDetails = studentScores.map(score => {
-                const assessment = DATA_MODELS.assessments.find(a => a.id === score.assessmentId);
-                return {
-                    name: assessment ? assessment.name : 'Unknown',
-                    date: assessment ? assessment.date : '',
-                    totalMarks: assessment ? assessment.totalMarks : 0,
-                    marks: score.marks
+                // --- 5) configure html2pdf options (landscape for wide charts + higher scale for clarity) ---
+                const filename = `Report_${student.studentId}_${(new Date()).toISOString().slice(0, 10)}.pdf`;
+                const opt = {
+                    margin: [10, 10, 10, 10], // mm
+                    filename: filename,
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2.5, useCORS: true, logging: false, allowTaint: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
                 };
-            }).sort((a, b) => new Date(a.date) - new Date(b.date));
 
-            csvContent += "Assessment History\n";
-            csvContent += "Assessment,Date,Marks Obtained,Total Marks,Percentage\n";
+                // Visual feedback for user (if a button exists in the page)
+                const exportBtn = document.querySelector('.no-print button[onclick^="downloadReportPDF"]');
+                if (exportBtn) { exportBtn.disabled = true; const oldText = exportBtn.textContent; exportBtn.textContent = 'Generating PDF...'; }
 
-            assessmentDetails.forEach(detail => {
-                const percentage = Math.round((detail.marks / detail.totalMarks) * 100);
-                csvContent += `"${detail.name}",${formatDate(detail.date)},${detail.marks},${detail.totalMarks},${percentage}%\n`;
-            });
-
-            // Download CSV
-            downloadCSV(csvContent, `student-report-${student.studentId}.csv`);
-        }
-
-        // Dashboard
-        function renderDashboard() {
-            const totalStudentsEl = document.getElementById('total-students');
-            if (totalStudentsEl) {
-                totalStudentsEl.textContent = DATA_MODELS.students.length;
-            }
-
-            const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
-            const classesHeldEl = document.getElementById('classes-held');
-            if (classesHeldEl) {
-                classesHeldEl.textContent = availableSessions.length;
-            }
-
-            // Calculate average attendance
-            if (DATA_MODELS.students.length > 0 && availableSessions.length > 0) {
-                let totalAttendance = 0;
-
-                DATA_MODELS.students.forEach(student => {
-                    const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === student.studentId);
-                    const presentCount = studentAttendance.filter(a =>
-                        a.status === 'Present' || a.status === 'Late'
-                    ).length;
-
-                    const attendancePercentage = Math.round((presentCount / availableSessions.length) * 100);
-                    totalAttendance += attendancePercentage;
+                // --- 6) generate PDF ---
+                html2pdf().set(opt).from(wrapper).save().then(() => {
+                    if (exportBtn) { exportBtn.disabled = false; exportBtn.textContent = 'Export as PDF'; }
+                }).catch(err => {
+                    console.error('PDF export failed', err);
+                    alert('Failed to generate PDF. See console for details.');
+                    if (exportBtn) { exportBtn.disabled = false; exportBtn.textContent = 'Export as PDF'; }
                 });
+            }
 
-                const avgAttendance = Math.round(totalAttendance / DATA_MODELS.students.length);
-                const avgAttendanceEl = document.getElementById('avg-attendance');
-                if (avgAttendanceEl) {
-                    avgAttendanceEl.textContent = `${avgAttendance}%`;
+            // small helper to safely escape HTML content for header text
+            function escapeHtml(str) {
+                if (!str) return '';
+                return str.replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]); });
+            }
+
+            function renderMarksChart(assessmentDetails) {
+                const canvas = document.getElementById('marks-chart');
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                // Destroy existing chart if it exists
+                if (window.marksChart) {
+                    window.marksChart.destroy();
                 }
-            } else {
-                const avgAttendanceEl = document.getElementById('avg-attendance');
-                if (avgAttendanceEl) {
-                    avgAttendanceEl.textContent = '0%';
+
+                // Prepare data
+                const labels = assessmentDetails.map(d => d.name);
+                const percentages = assessmentDetails.map(d => Math.round((d.marks / d.totalMarks) * 100));
+
+                window.marksChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Performance (%)',
+                            data: percentages,
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 2,
+                            fill: true,
+                            tension: 0.3
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Percentage'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function renderAttendanceChart(studentId) {
+                const canvas = document.getElementById('attendance-chart');
+                if (!canvas) return;
+
+                const ctx = canvas.getContext('2d');
+
+                // Destroy existing chart if it exists
+                if (window.attendanceChart) {
+                    window.attendanceChart.destroy();
                 }
-            }
 
-            // Upcoming sessions (next 7 days)
-            const today = new Date();
-            const nextWeek = new Date();
-            nextWeek.setDate(today.getDate() + 7);
+                // Group attendance by month
+                const monthlyAttendance = {};
 
-            const upcomingSessions = DATA_MODELS.sessions.filter(session => {
-                const sessionDate = new Date(session.date);
-                return sessionDate >= today && sessionDate <= nextWeek;
-            });
+                DATA_MODELS.sessions
+                    .filter(s => s.status === 'Available')
+                    .forEach(session => {
+                        const month = session.date.substring(0, 7); // YYYY-MM
+                        if (!monthlyAttendance[month]) {
+                            monthlyAttendance[month] = { total: 0, present: 0 };
+                        }
+                        monthlyAttendance[month].total++;
 
-            const upcomingSessionsEl = document.getElementById('upcoming-sessions');
-            if (upcomingSessionsEl) {
-                upcomingSessionsEl.textContent = upcomingSessions.length;
-            }
+                        const attendance = DATA_MODELS.attendance.find(a =>
+                            a.sessionId === session.id && a.studentId === studentId
+                        );
 
-            // Recent activity
-            const recentActivity = [];
-
-            // Add recent sessions
-            const recentSessions = [...DATA_MODELS.sessions]
-                .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-                .slice(0, 3);
-
-            recentSessions.forEach(session => {
-                recentActivity.push({
-                    date: session.createdAt,
-                    text: `New session created for ${formatDate(session.date)}`
-                });
-            });
-
-            // Add recent assessments
-            const recentAssessments = [...DATA_MODELS.assessments]
-                .sort((a, b) => new Date(b.date) - new Date(a.date))
-                .slice(0, 3);
-
-            recentAssessments.forEach(assessment => {
-                recentActivity.push({
-                    date: assessment.date,
-                    text: `New assessment "${assessment.name}" scheduled for ${formatDate(assessment.date)}`
-                });
-            });
-
-            // Sort by date and display
-            recentActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
-
-            const activityContainer = document.getElementById('recent-activity');
-            if (activityContainer) {
-                if (recentActivity.length > 0) {
-                    let html = '<ul>';
-                    recentActivity.slice(0, 5).forEach(activity => {
-                        html += `<li>${activity.text} <small>(${formatDateTime(activity.date)})</small></li>`;
+                        if (attendance && (attendance.status === 'Present' || attendance.status === 'Late')) {
+                            monthlyAttendance[month].present++;
+                        }
                     });
-                    html += '</ul>';
-                    activityContainer.innerHTML = html;
+
+                // Prepare data
+                const months = Object.keys(monthlyAttendance).sort();
+                const percentages = months.map(month => {
+                    const data = monthlyAttendance[month];
+                    return data.total > 0 ? Math.round((data.present / data.total) * 100) : 0;
+                });
+
+                window.attendanceChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: months.map(m => m.replace('-', '/')),
+                        datasets: [{
+                            label: 'Attendance (%)',
+                            data: percentages,
+                            backgroundColor: '#27ae60',
+                            borderColor: '#219653',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                title: {
+                                    display: true,
+                                    text: 'Percentage'
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+
+            function exportStudentReport(studentId) {
+                const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+                if (!student) return;
+
+                // Create CSV content
+                let csvContent = "Student Report\n";
+                csvContent += `Generated on:,${formatDate(new Date().toISOString())}\n\n`;
+
+                csvContent += "Student Information\n";
+                csvContent += "Field,Value\n";
+                csvContent += `Student ID,${student.studentId}\n`;
+                csvContent += `Name,${student.firstName} ${student.lastName}\n`;
+                csvContent += `Date of Birth,${student.dob ? formatDate(student.dob) : 'N/A'}\n`;
+                csvContent += `Class/Section,${student.class || 'N/A'}\n`;
+                csvContent += `Guardian,${student.guardian}\n`;
+                csvContent += `Phone,${student.phone || 'N/A'}\n`;
+                csvContent += `Email,${student.email || 'N/A'}\n`;
+                csvContent += `Notes,${student.notes || 'None'}\n\n`;
+
+                // Attendance summary
+                const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+                const totalSessionsHeld = availableSessions.length;
+
+                const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === studentId);
+                const presentCount = studentAttendance.filter(a =>
+                    a.status === 'Present' || a.status === 'Late'
+                ).length;
+
+                const attendancePercentage = totalSessionsHeld > 0
+                    ? Math.round((presentCount / totalSessionsHeld) * 100)
+                    : 0;
+
+                csvContent += "Attendance Summary\n";
+                csvContent += "Metric,Value\n";
+                csvContent += `Total Classes Held,${totalSessionsHeld}\n`;
+                csvContent += `Sessions Attended,${presentCount}\n`;
+                csvContent += `Attendance Percentage,${attendancePercentage}%\n\n`;
+
+                // Assessment history
+                const studentScores = DATA_MODELS.scores.filter(s => s.studentId === studentId);
+                const assessmentDetails = studentScores.map(score => {
+                    const assessment = DATA_MODELS.assessments.find(a => a.id === score.assessmentId);
+                    return {
+                        name: assessment ? assessment.name : 'Unknown',
+                        date: assessment ? assessment.date : '',
+                        totalMarks: assessment ? assessment.totalMarks : 0,
+                        marks: score.marks
+                    };
+                }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+                csvContent += "Assessment History\n";
+                csvContent += "Assessment,Date,Marks Obtained,Total Marks,Percentage\n";
+
+                assessmentDetails.forEach(detail => {
+                    const percentage = Math.round((detail.marks / detail.totalMarks) * 100);
+                    csvContent += `"${detail.name}",${formatDate(detail.date)},${detail.marks},${detail.totalMarks},${percentage}%\n`;
+                });
+
+                // Download CSV
+                downloadCSV(csvContent, `student-report-${student.studentId}.csv`);
+            }
+
+            // Dashboard
+            function renderDashboard() {
+                const totalStudentsEl = document.getElementById('total-students');
+                if (totalStudentsEl) {
+                    totalStudentsEl.textContent = DATA_MODELS.students.length;
+                }
+
+                const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+                const classesHeldEl = document.getElementById('classes-held');
+                if (classesHeldEl) {
+                    classesHeldEl.textContent = availableSessions.length;
+                }
+
+                // Calculate average attendance
+                if (DATA_MODELS.students.length > 0 && availableSessions.length > 0) {
+                    let totalAttendance = 0;
+
+                    DATA_MODELS.students.forEach(student => {
+                        const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === student.studentId);
+                        const presentCount = studentAttendance.filter(a =>
+                            a.status === 'Present' || a.status === 'Late'
+                        ).length;
+
+                        const attendancePercentage = Math.round((presentCount / availableSessions.length) * 100);
+                        totalAttendance += attendancePercentage;
+                    });
+
+                    const avgAttendance = Math.round(totalAttendance / DATA_MODELS.students.length);
+                    const avgAttendanceEl = document.getElementById('avg-attendance');
+                    if (avgAttendanceEl) {
+                        avgAttendanceEl.textContent = `${avgAttendance}%`;
+                    }
                 } else {
-                    activityContainer.innerHTML = '<p>No recent activity</p>';
-                }
-            }
-        }
-
-        // CSV Import
-        function handleCSVUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function (e) {
-                const content = e.target.result;
-                parseCSV(content);
-            };
-            reader.readAsText(file);
-        }
-
-        function parseCSV(content) {
-            const lines = content.split('\n').filter(line => line.trim() !== '');
-            if (lines.length < 2) {
-                alert('CSV file must contain at least a header row and one data row');
-                return;
-            }
-
-            const headers = lines[0].split(',').map(h => h.trim());
-            const expectedHeaders = ['studentId', 'firstName', 'lastName', 'dob(YYYY-MM-DD)', 'guardian', 'phone', 'email', 'notes'];
-
-            // Validate headers
-            if (headers.length !== expectedHeaders.length ||
-                !headers.every((h, i) => h === expectedHeaders[i])) {
-                alert('Invalid CSV format. Please check the required headers.');
-                return;
-            }
-
-            // Parse data rows
-            const students = [];
-            const errors = [];
-
-            for (let i = 1; i < lines.length; i++) {
-                const values = lines[i].split(',').map(v => v.trim());
-
-                if (values.length !== headers.length) {
-                    errors.push(`Row ${i + 1}: Invalid number of columns`);
-                    continue;
+                    const avgAttendanceEl = document.getElementById('avg-attendance');
+                    if (avgAttendanceEl) {
+                        avgAttendanceEl.textContent = '0%';
+                    }
                 }
 
-                const student = {
-                    studentId: values[0],
-                    firstName: values[1],
-                    lastName: values[2],
-                    dob: values[3],
-                    guardian: values[4],
-                    phone: values[5],
-                    email: values[6],
-                    notes: values[7]
+                // Upcoming sessions (next 7 days)
+                const today = new Date();
+                const nextWeek = new Date();
+                nextWeek.setDate(today.getDate() + 7);
+
+                const upcomingSessions = DATA_MODELS.sessions.filter(session => {
+                    const sessionDate = new Date(session.date);
+                    return sessionDate >= today && sessionDate <= nextWeek;
+                });
+
+                const upcomingSessionsEl = document.getElementById('upcoming-sessions');
+                if (upcomingSessionsEl) {
+                    upcomingSessionsEl.textContent = upcomingSessions.length;
+                }
+
+                // Recent activity
+                const recentActivity = [];
+
+                // Add recent sessions
+                const recentSessions = [...DATA_MODELS.sessions]
+                    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+                    .slice(0, 3);
+
+                recentSessions.forEach(session => {
+                    recentActivity.push({
+                        date: session.createdAt,
+                        text: `New session created for ${formatDate(session.date)}`
+                    });
+                });
+
+                // Add recent assessments
+                const recentAssessments = [...DATA_MODELS.assessments]
+                    .sort((a, b) => new Date(b.date) - new Date(a.date))
+                    .slice(0, 3);
+
+                recentAssessments.forEach(assessment => {
+                    recentActivity.push({
+                        date: assessment.date,
+                        text: `New assessment "${assessment.name}" scheduled for ${formatDate(assessment.date)}`
+                    });
+                });
+
+                // Sort by date and display
+                recentActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+                const activityContainer = document.getElementById('recent-activity');
+                if (activityContainer) {
+                    if (recentActivity.length > 0) {
+                        let html = '<ul>';
+                        recentActivity.slice(0, 5).forEach(activity => {
+                            html += `<li>${activity.text} <small>(${formatDateTime(activity.date)})</small></li>`;
+                        });
+                        html += '</ul>';
+                        activityContainer.innerHTML = html;
+                    } else {
+                        activityContainer.innerHTML = '<p>No recent activity</p>';
+                    }
+                }
+            }
+
+            // CSV Import
+            function handleCSVUpload(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const content = e.target.result;
+                    parseCSV(content);
                 };
-
-                // Validate required fields
-                if (!student.studentId || !student.firstName || !student.lastName || !student.guardian) {
-                    errors.push(`Row ${i + 1}: Missing required fields`);
-                    continue;
-                }
-
-                // Validate date format
-                if (student.dob && !/^\d{4}-\d{2}-\d{2}$/.test(student.dob)) {
-                    errors.push(`Row ${i + 1}: Invalid date format (should be YYYY-MM-DD)`);
-                    continue;
-                }
-
-                // Check for duplicate student ID
-                if (DATA_MODELS.students.some(s => s.studentId === student.studentId) ||
-                    students.some(s => s.studentId === student.studentId)) {
-                    errors.push(`Row ${i + 1}: Duplicate student ID`);
-                    continue;
-                }
-
-                students.push(student);
+                reader.readAsText(file);
             }
 
-            // Display preview or errors
-            const container = document.getElementById('preview-container');
-            if (!container) return;
+            function parseCSV(content) {
+                const lines = content.split('\n').filter(line => line.trim() !== '');
+                if (lines.length < 2) {
+                    alert('CSV file must contain at least a header row and one data row');
+                    return;
+                }
 
-            if (errors.length > 0) {
-                let errorHtml = '<h4>Validation Errors:</h4><ul>';
-                errors.forEach(error => {
-                    errorHtml += `<li>${error}</li>`;
-                });
-                errorHtml += '</ul>';
-                container.innerHTML = errorHtml;
+                const headers = lines[0].split(',').map(h => h.trim());
+                const expectedHeaders = ['studentId', 'firstName', 'lastName', 'dob(YYYY-MM-DD)', 'guardian', 'phone', 'email', 'notes'];
+
+                // Validate headers
+                if (headers.length !== expectedHeaders.length ||
+                    !headers.every((h, i) => h === expectedHeaders[i])) {
+                    alert('Invalid CSV format. Please check the required headers.');
+                    return;
+                }
+
+                // Parse data rows
+                const students = [];
+                const errors = [];
+
+                for (let i = 1; i < lines.length; i++) {
+                    const values = lines[i].split(',').map(v => v.trim());
+
+                    if (values.length !== headers.length) {
+                        errors.push(`Row ${i + 1}: Invalid number of columns`);
+                        continue;
+                    }
+
+                    const student = {
+                        studentId: values[0],
+                        firstName: values[1],
+                        lastName: values[2],
+                        dob: values[3],
+                        guardian: values[4],
+                        phone: values[5],
+                        email: values[6],
+                        notes: values[7]
+                    };
+
+                    // Validate required fields
+                    if (!student.studentId || !student.firstName || !student.lastName || !student.guardian) {
+                        errors.push(`Row ${i + 1}: Missing required fields`);
+                        continue;
+                    }
+
+                    // Validate date format
+                    if (student.dob && !/^\d{4}-\d{2}-\d{2}$/.test(student.dob)) {
+                        errors.push(`Row ${i + 1}: Invalid date format (should be YYYY-MM-DD)`);
+                        continue;
+                    }
+
+                    // Check for duplicate student ID
+                    if (DATA_MODELS.students.some(s => s.studentId === student.studentId) ||
+                        students.some(s => s.studentId === student.studentId)) {
+                        errors.push(`Row ${i + 1}: Duplicate student ID`);
+                        continue;
+                    }
+
+                    students.push(student);
+                }
+
+                // Display preview or errors
+                const container = document.getElementById('preview-container');
+                if (!container) return;
+
+                if (errors.length > 0) {
+                    let errorHtml = '<h4>Validation Errors:</h4><ul>';
+                    errors.forEach(error => {
+                        errorHtml += `<li>${error}</li>`;
+                    });
+                    errorHtml += '</ul>';
+                    container.innerHTML = errorHtml;
+                    const importCsvBtn = document.getElementById('import-csv-btn');
+                    if (importCsvBtn) {
+                        importCsvBtn.disabled = true;
+                    }
+                } else {
+                    let previewHtml = `<h4>Preview (${students.length} students):</h4>`;
+                    previewHtml += '<table><thead><tr>';
+                    headers.forEach(header => {
+                        previewHtml += `<th>${header}</th>`;
+                    });
+                    previewHtml += '</tr></thead><tbody>';
+
+                    students.slice(0, 5).forEach(student => {
+                        previewHtml += '<tr>';
+                        previewHtml += `<td>${student.studentId}</td>`;
+                        previewHtml += `<td>${student.firstName}</td>`;
+                        previewHtml += `<td>${student.lastName}</td>`;
+                        previewHtml += `<td>${student.dob || ''}</td>`;
+                        previewHtml += `<td>${student.guardian}</td>`;
+                        previewHtml += `<td>${student.phone || ''}</td>`;
+                        previewHtml += `<td>${student.email || ''}</td>`;
+                        previewHtml += `<td>${student.notes || ''}</td>`;
+                        previewHtml += '</tr>';
+                    });
+
+                    if (students.length > 5) {
+                        previewHtml += `<tr><td colspan="${headers.length}">... and ${students.length - 5} more students</td></tr>`;
+                    }
+
+                    previewHtml += '</tbody></table>';
+                    container.innerHTML = previewHtml;
+                    const importCsvBtn = document.getElementById('import-csv-btn');
+                    if (importCsvBtn) {
+                        importCsvBtn.disabled = false;
+                        importCsvBtn.dataset.students = JSON.stringify(students);
+                    }
+                }
+            }
+
+            function importStudentsFromCSV() {
                 const importCsvBtn = document.getElementById('import-csv-btn');
-                if (importCsvBtn) {
-                    importCsvBtn.disabled = true;
-                }
-            } else {
-                let previewHtml = `<h4>Preview (${students.length} students):</h4>`;
-                previewHtml += '<table><thead><tr>';
-                headers.forEach(header => {
-                    previewHtml += `<th>${header}</th>`;
-                });
-                previewHtml += '</tr></thead><tbody>';
+                if (!importCsvBtn) return;
 
-                students.slice(0, 5).forEach(student => {
-                    previewHtml += '<tr>';
-                    previewHtml += `<td>${student.studentId}</td>`;
-                    previewHtml += `<td>${student.firstName}</td>`;
-                    previewHtml += `<td>${student.lastName}</td>`;
-                    previewHtml += `<td>${student.dob || ''}</td>`;
-                    previewHtml += `<td>${student.guardian}</td>`;
-                    previewHtml += `<td>${student.phone || ''}</td>`;
-                    previewHtml += `<td>${student.email || ''}</td>`;
-                    previewHtml += `<td>${student.notes || ''}</td>`;
-                    previewHtml += '</tr>';
+                const studentsData = importCsvBtn.dataset.students;
+                if (!studentsData) return;
+
+                const students = JSON.parse(studentsData); // expecting an array
+
+                // Add each student; avoid duplicates
+                students.forEach(s => {
+                    if (!DATA_MODELS.students.some(existing => existing.studentId === s.studentId)) {
+                        DATA_MODELS.students.push(s);
+                    }
                 });
 
-                if (students.length > 5) {
-                    previewHtml += `<tr><td colspan="${headers.length}">... and ${students.length - 5} more students</td></tr>`;
+                saveData();
+                renderStudentsTable();
+                renderDashboard();
+                updateReportDropdown();
+
+                document.getElementById('import-modal').style.display = 'none';
+                document.getElementById('csv-file').value = '';
+                const previewContainer = document.getElementById('preview-container');
+                if (previewContainer) {
+                    previewContainer.innerHTML = '<p>Preview will appear here after selecting a file</p>';
+                }
+                importCsvBtn.disabled = true;
+                delete importCsvBtn.dataset.students;
+
+                alert(`${students.length} students imported successfully!`);
+            }
+
+
+            // Utility Functions
+            function generateId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            }
+
+            function formatDate(dateString) {
+                if (!dateString) return 'N/A';
+                const date = new Date(dateString);
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric'
+                });
+            }
+
+            function formatDateTime(dateTimeString) {
+                if (!dateTimeString) return 'N/A';
+                const date = new Date(dateTimeString);
+                return date.toLocaleDateString('en-US', {
+                    year: 'numeric',
+                    month: 'short',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            }
+
+            function downloadCSV(content, filename) {
+                const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+                const link = document.createElement('a');
+                const url = URL.createObjectURL(blob);
+                link.setAttribute('href', url);
+                link.setAttribute('download', filename);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+            // ---------------- Real-time listeners (Firestore) ----------------
+            // Keeps DATA_MODELS in sync with Firestore collections in real time.
+            // Uses window.onSnapshot, window.collection, window.db exposed by the module.
+
+            window.realtimeUnsubscribers = []; // keep unsub functions to stop later
+
+            function applyDocChangeToArray(arr, idKey, docData, changeType) {
+                const id = docData[idKey] || docData.id || docData.studentId || docData.sessionId;
+                if (changeType === 'removed') {
+                    const idx = arr.findIndex(x => (x[idKey] || x.id || x.studentId || x.sessionId) == id);
+                    if (idx !== -1) arr.splice(idx, 1);
+                    return;
                 }
 
-                previewHtml += '</tbody></table>';
-                container.innerHTML = previewHtml;
-                const importCsvBtn = document.getElementById('import-csv-btn');
-                if (importCsvBtn) {
-                    importCsvBtn.disabled = false;
-                    importCsvBtn.dataset.students = JSON.stringify(students);
+                // added/modified -> upsert
+                const idx = arr.findIndex(x => (x[idKey] || x.id || x.studentId || x.sessionId) == id);
+                if (idx === -1) {
+                    arr.push(docData);
+                } else {
+                    arr[idx] = docData;
                 }
             }
-        }
 
-        function importStudentsFromCSV() {
-            const importCsvBtn = document.getElementById('import-csv-btn');
-            if (!importCsvBtn) return;
+            function startRealtimeListeners() {
+                // defensive: require Firestore onSnapshot
+                if (!window.db || !window.onSnapshot || !window.collection) {
+                    console.warn('[realtime] Firestore realtime not available');
+                    return;
+                }
 
-            const studentsData = importCsvBtn.dataset.students;
-            if (!studentsData) return;
+                stopRealtimeListeners(); // prevent double listeners
 
-            const students = JSON.parse(studentsData);
-            DATA_MODELS.students.push(...students);
-            saveData();
-            renderStudentsTable();
-            renderDashboard();
-            updateReportDropdown();
+                // students (doc id = studentId)
+                const studentsColl = window.collection(window.db, 'students');
+                const unsubStudents = window.onSnapshot(studentsColl, snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        if (change.type === 'removed') {
+                            applyDocChangeToArray(DATA_MODELS.students, 'studentId', data, 'removed');
+                        } else {
+                            // ensure studentId exists (if doc id used as key, doc.data() may lack it)
+                            if (!data.studentId && change.doc.id) data.studentId = change.doc.id;
+                            applyDocChangeToArray(DATA_MODELS.students, 'studentId', data, change.type);
+                        }
+                    });
+                    saveData();
+                    renderStudentsTable();
+                    updateReportDropdown();
+                    renderDashboard();
+                    console.log('[realtime] students sync', DATA_MODELS.students.length);
+                }, err => console.error('[realtime] students listener error', err));
+                window.realtimeUnsubscribers.push(unsubStudents);
 
-            document.getElementById('import-modal').style.display = 'none';
-            document.getElementById('csv-file').value = '';
-            const previewContainer = document.getElementById('preview-container');
-            if (previewContainer) {
-                previewContainer.innerHTML = '<p>Preview will appear here after selecting a file</p>';
+                // sessions
+                const sessionsColl = window.collection(window.db, 'sessions');
+                const unsubSessions = window.onSnapshot(sessionsColl, snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        if (!data.id && change.doc.id) data.id = change.doc.id;
+                        applyDocChangeToArray(DATA_MODELS.sessions, 'id', data, change.type);
+                    });
+                    saveData();
+                    renderSessionsTable();
+                    renderAttendanceForm(document.getElementById('session-date')?.value || '');
+                    renderDashboard();
+                    console.log('[realtime] sessions sync', DATA_MODELS.sessions.length);
+                }, err => console.error('[realtime] sessions listener error', err));
+                window.realtimeUnsubscribers.push(unsubSessions);
+
+                // attendance (no stable id, we'll use composite key sessionId+studentId)
+                const attendanceColl = window.collection(window.db, 'attendance');
+                const unsubAttendance = window.onSnapshot(attendanceColl, snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data();
+                        // we can't rely on a single id field; we'll replace entries by sessionId+studentId
+                        if (change.type === 'removed') {
+                            DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => !(a.sessionId === data.sessionId && a.studentId === data.studentId));
+                        } else {
+                            // add/modify -> replace any matching entry
+                            DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => !(a.sessionId === data.sessionId && a.studentId === data.studentId));
+                            DATA_MODELS.attendance.push(data);
+                        }
+                    });
+                    saveData();
+                    // if currently taking attendance for a selected session, re-render form
+                    const currentSession = document.getElementById('session-date')?.value;
+                    if (currentSession) renderAttendanceForm(currentSession);
+                    console.log('[realtime] attendance sync', DATA_MODELS.attendance.length);
+                }, err => console.error('[realtime] attendance listener error', err));
+                window.realtimeUnsubscribers.push(unsubAttendance);
+                // assessments
+                // scores (listen to scores changes and merge by assessmentId + studentId)
+                const scoresColl = window.collection(window.db, 'scores');
+                const unsubScores = window.onSnapshot(scoresColl, snapshot => {
+                    snapshot.docChanges().forEach(change => {
+                        const data = change.doc.data() || {};
+
+                        // Ensure assessmentId & studentId exist (try to salvage from doc id if necessary)
+                        if (!data.assessmentId || !data.studentId) {
+                            const did = change.doc.id || '';
+                            const parts = did.split('_');
+                            if (parts.length >= 2) {
+                                data.assessmentId = data.assessmentId || parts[0];
+                                // join remaining parts in case studentId had underscores
+                                data.studentId = data.studentId || parts.slice(1).join('_');
+                            }
+                        }
+
+                        if (!data.assessmentId || !data.studentId) {
+                            // Can't index this score reliably — skip it (log for debugging)
+                            console.warn('[realtime][scores] skipping doc missing keys', change.doc.id, data);
+                            return;
+                        }
+
+                        if (change.type === 'removed') {
+                            DATA_MODELS.scores = DATA_MODELS.scores.filter(s => !(s.assessmentId === data.assessmentId && s.studentId === data.studentId));
+                        } else {
+                            // upsert by composite key assessmentId + studentId
+                            DATA_MODELS.scores = DATA_MODELS.scores.filter(s => !(s.assessmentId === data.assessmentId && s.studentId === data.studentId));
+                            DATA_MODELS.scores.push(data);
+                        }
+                    });
+
+                    // persist locally and refresh UI that depends on scores
+                    saveData();
+                    renderAssessmentsTable();
+
+                    // if scores modal is open for the assessment currently visible, refresh its inputs
+                    const scoresModal = document.getElementById('scores-modal');
+                    if (scoresModal && (scoresModal.style.display === 'flex' || scoresModal.style.display === 'block')) {
+                        // assumes your modal rendering function is openScoresModal(assessmentId)
+                        // find current assessment id in modal (if you store it somewhere)
+                        const curAsmt = window._currentScoresAssessmentId || document.getElementById('scores-assessment-select')?.value;
+                        if (curAsmt && typeof openScoresModal === 'function') {
+                            openScoresModal(curAsmt);
+                        }
+                    }
+
+                    console.log('[realtime] scores sync', DATA_MODELS.scores.length);
+                }, err => console.error('[realtime] scores listener error', err));
+                window.realtimeUnsubscribers.push(unsubScores);
             }
-            importCsvBtn.disabled = true;
-            delete importCsvBtn.dataset.students;
 
-            alert(`${students.length} students imported successfully!`);
-        }
-
-        // Utility Functions
-        function generateId() {
-            return Date.now().toString(36) + Math.random().toString(36).substr(2);
-        }
-
-        function formatDate(dateString) {
-            if (!dateString) return 'N/A';
-            const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric'
-            });
-        }
-
-        function formatDateTime(dateTimeString) {
-            if (!dateTimeString) return 'N/A';
-            const date = new Date(dateTimeString);
-            return date.toLocaleDateString('en-US', {
-                year: 'numeric',
-                month: 'short',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-        }
-
-        function downloadCSV(content, filename) {
-            const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-            const link = document.createElement('a');
-            const url = URL.createObjectURL(blob);
-            link.setAttribute('href', url);
-            link.setAttribute('download', filename);
-            link.style.visibility = 'hidden';
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-    </script>
+        </script>
+    </div>
 </body>
 
 </html>
