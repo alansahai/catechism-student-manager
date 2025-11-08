@@ -1,0 +1,2384 @@
+// Show a nice overlay for uncaught errors (helps when white-screen occurs)
+window.addEventListener('error', function (ev) {
+    try {
+        const overlay = document.getElementById('app-error-overlay');
+        const msg = document.getElementById('app-error-message');
+        if (overlay && msg) {
+            overlay.style.display = 'block';
+            msg.textContent = `${ev.message}\n${ev.filename || ''}:${ev.lineno || ''}:${ev.colno || ''}\n\nSee console for stack.`;
+            document.getElementById('app-error-reload').onclick = () => location.reload();
+            document.getElementById('app-error-console').onclick = () => { /* focus console for user */ console.log('Open DevTools -> Console'); };
+        }
+    } catch (e) { /* ignore overlay errors */ }
+});
+
+// Also catch unhandled promise rejections
+window.addEventListener('unhandledrejection', function (ev) {
+    try {
+        const overlay = document.getElementById('app-error-overlay');
+        const msg = document.getElementById('app-error-message');
+        if (overlay && msg) {
+            overlay.style.display = 'block';
+            msg.textContent = `Unhandled promise rejection:\n${ev.reason && ev.reason.message ? ev.reason.message : JSON.stringify(ev.reason)}`;
+        }
+    } catch (e) { }
+});
+
+
+// 🔐 Firebase Authentication Logic
+document.addEventListener('DOMContentLoaded', function () {
+    const loginScreen = document.getElementById('login-screen');
+    const appContent = document.getElementById('app-content');
+    const loginForm = document.getElementById('login-form');
+    const loginError = document.getElementById('login-error');
+    const loginButton = document.getElementById('login-button');
+    // *** ADD THIS NEW BLOCK ***
+    const togglePassword = document.getElementById('toggle-password');
+    const passwordInput = document.getElementById('login-password');
+
+    if (togglePassword && passwordInput) {
+        togglePassword.addEventListener('click', function () {
+            // Toggle the type
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+
+            // Toggle the icon
+            const icon = this.querySelector('i');
+            if (type === 'password') {
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            } else {
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            }
+        });
+    }
+    // Hide main app initially
+    appContent.style.display = 'none';
+    loginScreen.style.display = 'flex'; // Show login screen
+
+    // 1. Login Form Submit Handler
+    loginForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        if (!window.auth || !window.signInWithEmailAndPassword) {
+            loginError.textContent = 'Auth service not ready. Please wait...';
+            loginError.style.display = 'block';
+            return;
+        }
+
+        const email = document.getElementById('login-email').value.trim();
+        const password = document.getElementById('login-password').value.trim();
+
+        loginButton.disabled = true;
+        loginError.style.display = 'none';
+
+        try {
+            // Try to sign in with Firebase Auth
+            const userCredential = await window.signInWithEmailAndPassword(window.auth, email, password);
+            const user = userCredential.user;
+
+            // --- Successful Login ---
+            console.log('Firebase Auth successful for:', user.email, user.uid);
+
+            // Now, fetch the user's role from Firestore
+            const role = await getUserRole(user.uid);
+
+            if (!role) {
+                // This error is caught below
+                throw new Error("Login success, but no role found in Firestore for this user.");
+            }
+
+            const userData = {
+                uid: user.uid,
+                email: user.email,
+                role: role
+            };
+
+            // Save user data (with role) to localStorage
+            localStorage.setItem('currentUser', JSON.stringify(userData));
+
+            // Start the app
+            showAppContent(userData);
+
+        } catch (error) {
+            console.error('Login error:', error.code, error.message);
+            if (error.code === 'auth/invalid-credential' || error.code === 'auth/wrong-password' || error.code === 'auth/user-not-found') {
+                loginError.textContent = 'Invalid email or password.';
+            } else if (error.message.includes("no role found")) {
+                loginError.textContent = 'Login successful, but no role is assigned to this account.';
+            } else {
+                loginError.textContent = 'An error occurred. Please try again.';
+            }
+            loginError.style.display = 'block';
+        } finally {
+            loginButton.disabled = false;
+        }
+    });
+
+    // 2. Session Restore Logic (using onAuthStateChanged)
+    // This checks if the user is already logged in
+    if (window.onAuthStateChanged) {
+        window.onAuthStateChanged(window.auth, async (user) => {
+            if (user) {
+                // User is signed in.
+                console.log('onAuthStateChanged: User is signed in', user.uid);
+                let localData = null;
+                try {
+                    localData = JSON.parse(localStorage.getItem('currentUser'));
+                } catch (e) { /* ignore */ }
+
+                if (localData && localData.uid === user.uid && localData.role) {
+                    // Use valid local data
+                    showAppContent(localData);
+                } else {
+                    // No local data. Fetch role from Firestore.
+                    console.log('Fetching role for restoring session...');
+                    const role = await getUserRole(user.uid);
+                    if (role) {
+                        const userData = { uid: user.uid, email: user.email, role: role };
+                        localStorage.setItem('currentUser', JSON.stringify(userData));
+                        showAppContent(userData);
+                    } else {
+                        // Valid user, but no role. Kick them out.
+                        console.error("User signed in, but no role found. Forcing logout.");
+                        logout(); // This is the new logout function
+                    }
+                }
+            } else {
+                // User is signed out.
+                console.log('onAuthStateChanged: User is signed out.');
+                showLoginScreen();
+            }
+        });
+    } else {
+        console.error("Firebase Auth (onAuthStateChanged) not loaded!");
+        loginError.textContent = "Fatal Error: Auth service failed to load.";
+        loginError.style.display = 'block';
+    }
+
+    // 3. Helper to fetch user role from Firestore
+    async function getUserRole(uid) {
+        if (!window.db || !window.doc || !window.getDoc) return null;
+
+        try {
+            // This matches the 'userRoles' collection in our security rules
+            const roleDocRef = window.doc(window.db, 'userRoles', uid);
+            const docSnap = await window.getDoc(roleDocRef);
+
+            if (docSnap.exists()) {
+                return docSnap.data().role; // e.g., "admin"
+            } else {
+                console.warn(`No role document found for UID: ${uid}`);
+                return null;
+            }
+        } catch (err) {
+            console.error("Error fetching user role:", err);
+            return null;
+        }
+    }
+
+    // 4. UI Transition Helpers
+    function showAppContent(userData) {
+        loginScreen.style.display = 'none';
+        appContent.style.display = 'block';
+        console.log(`Welcome, ${userData.email}! Role: ${userData.role}`);
+
+        applyRoleRestrictions(userData.role);
+        showMigrationButtonsIfAdmin();
+        startRealtimeListeners(); // Start listening for data
+    }
+
+    function showLoginScreen() {
+        stopRealtimeListeners(); // Stop listeners when logged out
+        localStorage.removeItem('currentUser');
+        loginScreen.style.display = 'flex';
+        appContent.style.display = 'none';
+    }
+});
+
+// 5. Global Logout Function (called by logout button)
+async function logout() {
+    if (!window.auth || !window.signOut) return;
+    try {
+        await window.signOut(window.auth);
+        // onAuthStateChanged will automatically catch this and call showLoginScreen()
+        console.log('User signed out.');
+    } catch (error) {
+        console.error('Sign out error:', error);
+    }
+}
+
+// 6. New Logout Button
+// Add logout button dynamically (top-right)
+// Add logout button dynamically (top-right)
+(function addLogoutBtn() {
+    const header = document.querySelector('header .header-content');
+    if (!header) return;
+    const btn = document.createElement('button');
+    btn.id = 'logout-btn';
+    btn.className = 'btn btn-outline';
+    btn.style.marginLeft = '12px';
+    btn.innerHTML = '<i class="fas fa-sign-out-alt"></i> Logout';
+
+    // Call the new global logout() function
+    btn.addEventListener('click', () => {
+        if (confirm('Are you sure you want to log out?')) {
+            logout(); // This is the new function we defined
+        }
+    });
+
+    header.appendChild(btn);
+    // ensure migration buttons visibility is recalculated
+    showMigrationButtonsIfAdmin();
+})();
+
+// 🔐 Apply UI restrictions
+function applyRoleRestrictions(role) {
+    // Example: only admin can add students or create sessions
+    if (role !== 'admin') {
+        document.querySelectorAll('#add-student-btn, #new-session-btn, #new-assessment-btn')
+            .forEach(btn => btn.style.display = 'none');
+    }
+}
+
+// Data Models
+const DATA_MODELS = {
+    students: [],
+    sessions: [],
+    attendance: [],
+    assessments: [],
+    scores: []
+};
+
+// --- Recovery safeguard: ensure DATA_MODELS exists ---
+if (!window.DATA_MODELS) {
+    window.DATA_MODELS = {
+        students: [],
+        sessions: [],
+        attendance: [],
+        assessments: [],
+        scores: []
+    };
+    console.log('Created default DATA_MODELS');
+} else {
+    console.log('DATA_MODELS already exists');
+}
+
+// --- Reinitialize data safely after reload ---
+(async () => {
+    try {
+        if (typeof loadData !== 'function') {
+            console.warn('loadData not defined yet — skipping Firestore/localStorage init');
+            return;
+        }
+        console.log('Calling loadData() — result will appear when done...');
+        await loadData();
+        console.log('loadData completed. students:', DATA_MODELS.students.length, 'sessions:', DATA_MODELS.sessions.length);
+    } catch (e) {
+        console.error('loadData failed:', e);
+    }
+})();
+
+
+// ----------------- Firestore migration / import helpers -----------------
+
+// Show migrate/import buttons to admins
+// Show migrate/import buttons to admins — improved version with debug logs and fallback display
+// function showMigrationButtonsIfAdmin() {
+//     try {
+//         const curJson = localStorage.getItem('currentUser') || 'null';
+//         const cur = JSON.parse(curJson);
+
+//         // debug — uncomment if you need logs
+//         // console.log('[showMigrationButtonsIfAdmin] currentUser:', cur);
+
+//         const migrateBtn = document.getElementById('migrate-btn');
+//         const importBtn = document.getElementById('import-firestore-btn');
+
+//         // hide by default (defensive)
+//         if (migrateBtn) migrateBtn.style.display = 'none';
+//         if (importBtn) importBtn.style.display = 'none';
+
+//         if (!cur) return;                 // no user stored
+//         if (!cur.role) return;            // no role assigned
+
+//         const role = String(cur.role).toLowerCase(); // make case-insensitive
+//         if (role === 'admin') {
+//             if (migrateBtn) migrateBtn.style.display = 'inline-flex';
+//             if (importBtn) importBtn.style.display = 'inline-flex';
+//         }
+//     } catch (e) {
+//         console.error('[showMigrationButtonsIfAdmin] error', e);
+//     }
+// }
+
+
+// // Call after login and on page load restore
+// showMigrationButtonsIfAdmin();
+
+// Helper: Upload a whole collection from an array (replacing existing docs if exist)
+async function migrateCollectionToFirestore(collectionName, items, idKey = 'id', useIdAsDoc = false) {
+    if (!window.db || !window.addDoc || !window.setDoc || !window.doc) {
+        throw new Error('Firestore not initialized');
+    }
+    const colRef = collection(window.db, collectionName);
+
+    // We'll write each item as a new doc. If useIdAsDoc=true we'll use that id as doc id (string).
+    const results = [];
+    for (const item of items) {
+        try {
+            if (useIdAsDoc && item[idKey]) {
+                // setDoc at specific doc id
+                const dref = doc(window.db, collectionName, String(item[idKey]));
+                await setDoc(dref, item);
+                results.push({ ok: true, id: item[idKey] });
+            } else {
+                const r = await addDoc(colRef, item);
+                results.push({ ok: true, id: r.id });
+            }
+        } catch (err) {
+            results.push({ ok: false, error: err.message || String(err) });
+        }
+    }
+    return results;
+}
+
+// Migrate all DATA_MODELS to Firestore (admin-only)
+async function migrateAllToFirestore() {
+    if (!confirm('This will upload current local data to Firestore. Proceed?')) return;
+
+    try {
+        // students: use studentId as doc id
+        const students = DATA_MODELS.students.map(s => ({ ...s }));
+        const sessions = DATA_MODELS.sessions.map(s => ({ ...s }));
+        const attendance = DATA_MODELS.attendance.map(a => ({ ...a }));
+        const assessments = DATA_MODELS.assessments.map(a => ({ ...a }));
+        const scores = DATA_MODELS.scores.map(s => ({ ...s }));
+
+        // Upload collections in sequence (you may parallelize later)
+        await migrateCollectionToFirestore('students', students, 'studentId', true);
+        await migrateCollectionToFirestore('sessions', sessions, 'id', true);
+        await migrateCollectionToFirestore('attendance', attendance, null, false);
+        await migrateCollectionToFirestore('assessments', assessments, 'id', true);
+        await migrateCollectionToFirestore('scores', scores, null, false);
+
+        alert('Migration to Firestore completed (check console for details).');
+        console.log('Migration complete');
+    } catch (err) {
+        console.error('Migration failed', err);
+        alert('Migration failed: ' + err.message);
+    }
+}
+
+// Import entire app data from Firestore into DATA_MODELS (careful: merges, does not delete local)
+async function importAllFromFirestore() {
+    if (!confirm('This will import data from Firestore and merge into local data. Proceed?')) return;
+
+    try {
+        // students
+        const studentsSnap = await getDocs(collection(window.db, 'students'));
+        const newStudents = [];
+        studentsSnap.forEach(docSnap => {
+            newStudents.push(docSnap.data());
+        });
+
+        // sessions
+        const sessionsSnap = await getDocs(collection(window.db, 'sessions'));
+        const newSessions = [];
+        sessionsSnap.forEach(docSnap => newSessions.push(docSnap.data()));
+
+        // attendance
+        const attendanceSnap = await getDocs(collection(window.db, 'attendance'));
+        const newAttendance = [];
+        attendanceSnap.forEach(docSnap => newAttendance.push(docSnap.data()));
+
+        // assessments
+        const assessmentsSnap = await getDocs(collection(window.db, 'assessments'));
+        const newAssessments = [];
+        assessmentsSnap.forEach(docSnap => newAssessments.push(docSnap.data()));
+
+        // scores
+        const scoresSnap = await getDocs(collection(window.db, 'scores'));
+        const newScores = [];
+        scoresSnap.forEach(docSnap => newScores.push(docSnap.data()));
+
+        // Merge into local DATA_MODELS (avoid duplicates)
+        function mergeUnique(arrLocal, arrImported, idKey) {
+            const map = new Map(arrLocal.map(i => [i[idKey], i]));
+            for (const it of arrImported) {
+                if (!map.has(it[idKey])) {
+                    arrLocal.push(it);
+                }
+            }
+        }
+
+        mergeUnique(DATA_MODELS.students, newStudents, 'studentId');
+        mergeUnique(DATA_MODELS.sessions, newSessions, 'id');
+        // attendance and scores may not have stable ids; just append if not exact duplicate
+        DATA_MODELS.attendance = DATA_MODELS.attendance.concat(newAttendance.filter(a => {
+            return !DATA_MODELS.attendance.some(x => x.sessionId === a.sessionId && x.studentId === a.studentId);
+        }));
+        DATA_MODELS.assessments = DATA_MODELS.assessments.concat(newAssessments.filter(a => {
+            return !DATA_MODELS.assessments.some(x => x.id === a.id);
+        }));
+        DATA_MODELS.scores = DATA_MODELS.scores.concat(newScores.filter(s => {
+            return !DATA_MODELS.scores.some(x => x.assessmentId === s.assessmentId && x.studentId === s.studentId);
+        }));
+
+        saveData();
+        renderStudentsTable();
+        renderSessionsTable();
+        renderAssessmentsTable();
+        updateReportDropdown();
+
+        alert('Import completed and merged into local data.');
+    } catch (err) {
+        console.error('Import failed', err);
+        alert('Import failed: ' + err.message);
+    }
+}
+
+// // Wire the buttons
+// document.addEventListener('DOMContentLoaded', () => {
+//     const migrateBtn = document.getElementById('migrate-btn');
+//     const importBtn = document.getElementById('import-firestore-btn');
+//     if (migrateBtn) migrateBtn.addEventListener('click', migrateAllToFirestore);
+//     if (importBtn) importBtn.addEventListener('click', importAllFromFirestore);
+// });
+
+
+// DOM Elements
+const tabs = document.querySelectorAll('[data-tab]');
+const tabContents = document.querySelectorAll('.tab-content');
+// const modalTriggers = document.querySelectorAll('[data-modal]');
+const modals = document.querySelectorAll('.modal');
+const closeButtons = document.querySelectorAll('.close-btn');
+
+document.addEventListener('DOMContentLoaded', async function () {
+    try {
+        // Attempt to load data (may fetch from Firestore if implemented)
+        if (typeof loadData === 'function') {
+            await loadData(); // loadData may be async if you added Firestore fallback
+        }
+
+        // Now run UI renderers
+        if (typeof renderDashboard === 'function') renderDashboard();
+        if (typeof renderStudentsTable === 'function') renderStudentsTable();
+        if (typeof renderSessionsTable === 'function') renderSessionsTable();
+        if (typeof renderAssessmentsTable === 'function') renderAssessmentsTable();
+        if (typeof setupEventListeners === 'function') setupEventListeners();
+        if (typeof updateReportDropdown === 'function') updateReportDropdown();
+
+        // restore session if any (this should show the app after login)
+        if (typeof restoreSession === 'function') restoreSession();
+        // ensure migration buttons visibility if user already logged in
+        if (typeof showMigrationButtonsIfAdmin === 'function') showMigrationButtonsIfAdmin();
+
+        // If app-content is still hidden but we have a user, show it (defensive)
+        try {
+            const appContent = document.getElementById('app-content');
+            const loginScreen = document.getElementById('login-screen');
+            const cur = JSON.parse(localStorage.getItem('currentUser') || 'null');
+            if (cur && appContent) {
+                if (loginScreen) loginScreen.style.display = 'none';
+                appContent.style.display = 'block';
+            }
+        } catch (e) { /* ignore */ }
+
+    } catch (err) {
+        console.error('[init] initialization error', err);
+        // show overlay with the error for visibility
+        const overlay = document.getElementById('app-error-overlay');
+        const msg = document.getElementById('app-error-message');
+        if (overlay && msg) {
+            overlay.style.display = 'block';
+            msg.textContent = (err && err.message) ? err.message + '\n\n' + (err.stack || '') : String(err);
+        } else {
+            alert('Initialization error: ' + (err.message || err));
+        }
+    }
+});
+
+
+// Navigation
+tabs.forEach(tab => {
+    tab.addEventListener('click', function (e) {
+        e.preventDefault();
+        const targetTab = this.getAttribute('data-tab');
+
+        // Update active tab in navigation
+        document.querySelectorAll('[data-tab]').forEach(t => t.classList.remove('active'));
+        this.classList.add('active');
+
+        // Show corresponding content
+        tabContents.forEach(content => {
+            content.classList.remove('active');
+            if (content.id === targetTab) {
+                content.classList.add('active');
+            }
+        });
+
+        // Special handling for reports tab
+        // Special handling when switching to attendance or reports
+        if (targetTab === 'attendance') {
+            renderSessionsTable();
+            // renderAttendanceForm() only if there is a selected session; otherwise populate select
+            renderAttendanceForm(document.getElementById('session-date')?.value || '');
+        }
+        if (targetTab === 'reports') {
+            updateReportDropdown();
+        }
+
+    });
+});
+
+// Modal triggers: any element with a data-modal attribute
+const modalTriggers = document.querySelectorAll('[data-modal]');
+
+modalTriggers.forEach(trigger => {
+    trigger.addEventListener('click', function (e) {
+        e.preventDefault();
+        const modalId = this.dataset.modal;
+        const modalEl = document.getElementById(modalId);
+        if (!modalEl) return console.warn('Modal not found:', modalId);
+
+        modalEl.style.display = 'flex';
+
+        // Special handling for different modals (keep previous logic)
+        if (modalId === 'session-modal') {
+            const sessionDateInput = document.getElementById('session-date-input');
+            if (sessionDateInput) sessionDateInput.valueAsDate = new Date();
+            // hide noclass reason by default when opening
+            const reasonGroup = document.getElementById('noclass-reason-group');
+            if (reasonGroup) reasonGroup.style.display = 'none';
+        } else if (modalId === 'student-modal') {
+            const studentModalTitle = document.getElementById('student-modal-title');
+            if (studentModalTitle) studentModalTitle.textContent = 'Add Student';
+            const studentForm = document.getElementById('student-form');
+            if (studentForm) studentForm.reset();
+            const studentIdHidden = document.getElementById('student-id');
+            if (studentIdHidden) studentIdHidden.value = '';
+        } else if (modalId === 'import-modal') {
+            // reset preview & file input
+            const csvFile = document.getElementById('csv-file');
+            if (csvFile) csvFile.value = '';
+            const preview = document.getElementById('preview-container');
+            if (preview) preview.innerHTML = '<p>Preview will appear here after selecting a file</p>';
+            const importBtn = document.getElementById('import-csv-btn');
+            if (importBtn) importBtn.disabled = true;
+        }
+    });
+});
+
+
+closeButtons.forEach(button => {
+    button.addEventListener('click', function () {
+        this.closest('.modal').style.display = 'none';
+    });
+});
+
+window.addEventListener('click', function (e) {
+    modals.forEach(modal => {
+        if (e.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+});
+
+// Event Listeners
+function setupEventListeners() {
+    // Session status change
+    const sessionStatus = document.getElementById('session-status');
+    if (sessionStatus) {
+        sessionStatus.addEventListener('change', function () {
+            const reasonGroup = document.getElementById('noclass-reason-group');
+            reasonGroup.style.display = this.value === 'NoClass' ? 'block' : 'none';
+        });
+    }
+
+    // Save student
+    const saveStudentBtn = document.getElementById('save-student-btn');
+    if (saveStudentBtn) {
+        saveStudentBtn.addEventListener('click', saveStudent);
+    }
+
+    // Save session
+    const saveSessionBtn = document.getElementById('save-session-btn');
+    if (saveSessionBtn) {
+        saveSessionBtn.addEventListener('click', saveSession);
+    }
+
+    // Save assessment
+    const saveAssessmentBtn = document.getElementById('save-assessment-btn');
+    if (saveAssessmentBtn) {
+        saveAssessmentBtn.addEventListener('click', saveAssessment);
+    }
+
+    // Save scores
+    const saveScoresBtn = document.getElementById('save-scores-btn');
+    if (saveScoresBtn) {
+        saveScoresBtn.addEventListener('click', saveScores);
+    }
+
+    // Import CSV
+    const csvFile = document.getElementById('csv-file');
+    if (csvFile) {
+        csvFile.addEventListener('change', handleCSVUpload);
+    }
+
+    const importCsvBtn = document.getElementById('import-csv-btn');
+    if (importCsvBtn) {
+        importCsvBtn.addEventListener('click', importStudentsFromCSV);
+    }
+
+    // Add this inside the setupEventListeners function
+    const studentSearch = document.getElementById('student-search');
+    if (studentSearch) {
+        studentSearch.addEventListener('input', renderStudentsTable);
+        // Also attach to the search button
+        const searchBtn = studentSearch.nextElementSibling;
+        if (searchBtn) searchBtn.addEventListener('click', renderStudentsTable);
+    }
+
+    // New session button
+    const newSessionBtn = document.getElementById('new-session-btn');
+    if (newSessionBtn) {
+        newSessionBtn.addEventListener('click', function () {
+            const sessionForm = document.getElementById('session-form');
+            if (sessionForm) {
+                sessionForm.reset();
+            }
+            const reasonGroup = document.getElementById('noclass-reason-group');
+            if (reasonGroup) {
+                reasonGroup.style.display = 'none';
+            }
+        });
+    }
+
+    // Tabs inside attendance section
+    document.querySelectorAll('[data-tab-target]').forEach(tab => {
+        tab.addEventListener('click', function () {
+            const target = this.getAttribute('data-tab-target');
+
+            // Update active tab
+            document.querySelectorAll('[data-tab-target]').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+
+            // Show corresponding content
+            document.querySelectorAll('#attendance .tab-content').forEach(content => {
+                content.classList.remove('active');
+                if (`#${content.id}` === target) {
+                    content.classList.add('active');
+                }
+            });
+        });
+    });
+
+    // Report student selection
+    const reportStudent = document.getElementById('report-student');
+    if (reportStudent) {
+        reportStudent.addEventListener('change', function () {
+            const studentId = this.value;
+            if (studentId) {
+                generateStudentReport(studentId);
+            } else {
+                document.getElementById('report-content').innerHTML = '<p>Select a student to generate a report</p>';
+            }
+        });
+    }
+
+    // Session date selection for attendance
+    const sessionDate = document.getElementById('session-date');
+    if (sessionDate) {
+        sessionDate.addEventListener('change', function () {
+            const sessionId = this.value;
+            if (sessionId) {
+                renderAttendanceForm(sessionId);
+            } else {
+                document.getElementById('attendance-form-container').innerHTML = '<p>Select a session to take attendance</p>';
+            }
+        });
+    }
+}
+
+// Data Management Functions
+function loadData() {
+    // const savedData = localStorage.getItem('catechismData');
+    // if (savedData) {
+    //     const parsedData = JSON.parse(savedData);
+    //     Object.assign(DATA_MODELS, parsedData);
+    // }
+
+    // localStorage is disabled. Data will be loaded by Firebase listeners.
+}
+
+function saveData() {
+    // localStorage.setItem('catechismData', JSON.stringify(DATA_MODELS));
+
+    // localStorage is disabled. Data is now live from Firebase.
+}
+
+// Student Management
+function renderStudentsTable() {
+    const tbody = document.querySelector('#students-table tbody');
+    if (!tbody) return;
+    // *** ADD THIS ***
+    const filterText = document.getElementById('student-search')?.value.toLowerCase() || '';
+    const filteredStudents = DATA_MODELS.students.filter(student => {
+        if (!filterText) return true; // Show all if search is empty
+        return student.firstName.toLowerCase().includes(filterText) ||
+            student.lastName.toLowerCase().includes(filterText) ||
+            student.studentId.toLowerCase().includes(filterText) ||
+            (student.guardian && student.guardian.toLowerCase().includes(filterText));
+    });
+    tbody.innerHTML = '';
+
+    DATA_MODELS.students.forEach(student => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+                    <td><a href="#" class="student-link" onclick="viewStudentDetails('${student.studentId}')">${student.studentId}</a></td>
+                    <td>${student.firstName} ${student.lastName}</td>
+                    <td>${student.guardian}</td>
+                    <td>${student.phone || student.email || 'N/A'}</td>
+                    <td>${student.class || 'N/A'}</td>
+                    <td>
+                        <button class="btn btn-warning btn-sm edit-student" data-id="${student.studentId}">
+                            <i class="fas fa-edit"></i>
+                        </button>
+                        <button class="btn btn-danger btn-sm delete-student" data-id="${student.studentId}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+        tbody.appendChild(row);
+    });
+
+    // Add event listeners to action buttons
+    document.querySelectorAll('.edit-student').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const studentId = this.getAttribute('data-id');
+            editStudent(studentId);
+        });
+    });
+
+    document.querySelectorAll('.delete-student').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const studentId = this.getAttribute('data-id');
+            deleteStudent(studentId);
+        });
+    });
+}
+
+// Save student (now persists to Firestore as well)
+async function saveStudent() {
+    // Get the save button
+    const saveBtn = document.getElementById('save-student-btn');
+    const oldBtnText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+
+    try {
+        const studentIdInput = document.getElementById('student-id-input').value.trim();
+        const firstName = document.getElementById('student-first-name').value.trim();
+        const lastName = document.getElementById('student-last-name').value.trim();
+        const dob = document.getElementById('student-dob').value;
+        const guardian = document.getElementById('student-guardian').value.trim();
+        const phone = document.getElementById('student-phone').value.trim();
+        const email = document.getElementById('student-email').value.trim();
+        const studentClass = document.getElementById('student-class').value.trim();
+        const notes = document.getElementById('student-notes').value.trim();
+        const id = document.getElementById('student-id').value;
+
+        if (!firstName || !lastName || !studentIdInput || !guardian) {
+            // Use throw new Error to be caught by the catch block
+            throw new Error('Please fill in all required fields');
+        }
+
+        if (!id && DATA_MODELS.students.some(s => s.studentId === studentIdInput)) {
+            throw new Error('A student with this ID already exists');
+        }
+
+        const student = {
+            studentId: studentIdInput,
+            firstName,
+            lastName,
+            dob,
+            guardian,
+            phone,
+            email,
+            class: studentClass,
+            notes
+        };
+
+        if (id) {
+            const index = DATA_MODELS.students.findIndex(s => s.studentId === id);
+            if (index !== -1) DATA_MODELS.students[index] = student;
+            else DATA_MODELS.students.push(student);
+        } else {
+            DATA_MODELS.students.push(student);
+        }
+
+        saveData();
+        renderStudentsTable();
+        renderDashboard();
+        updateReportDropdown();
+
+        // Persist to Firestore
+        if (window.db && window.setDoc && window.doc) {
+            const studentRef = window.doc(window.db, 'students', String(student.studentId));
+            await window.setDoc(studentRef, student); // Wait for the save
+            console.log('[saveStudent] persisted to Firestore:', student.studentId);
+        } else {
+            console.warn('[saveStudent] Firestore not initialized');
+        }
+
+        const modal = document.getElementById('student-modal');
+        if (modal) modal.style.display = 'none';
+
+    } catch (err) {
+        // Show error to the user
+        console.error('[saveStudent] Error:', err);
+        alert('Error: ' + err.message);
+    } finally {
+        // ALWAYS re-enable the button
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = oldBtnText;
+    }
+}
+
+function editStudent(studentId) {
+    const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+    if (student) {
+        document.getElementById('student-id').value = student.studentId;
+        document.getElementById('student-id-input').value = student.studentId;
+        document.getElementById('student-first-name').value = student.firstName;
+        document.getElementById('student-last-name').value = student.lastName;
+        document.getElementById('student-dob').value = student.dob || '';
+        document.getElementById('student-guardian').value = student.guardian;
+        document.getElementById('student-phone').value = student.phone || '';
+        document.getElementById('student-email').value = student.email || '';
+        document.getElementById('student-class').value = student.class || '';
+        document.getElementById('student-notes').value = student.notes || '';
+
+        document.getElementById('student-modal-title').textContent = 'Edit Student';
+        document.getElementById('student-modal').style.display = 'flex';
+    }
+}
+
+function deleteStudent(studentId) {
+    if (!confirm('Are you sure you want to delete this student?')) return;
+
+    // Remove locally
+    DATA_MODELS.students = DATA_MODELS.students.filter(s => s.studentId !== studentId);
+    DATA_MODELS.scores = DATA_MODELS.scores.filter(sc => sc.studentId !== studentId);
+    DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.studentId !== studentId);
+
+    saveData();
+    renderStudentsTable();
+    renderDashboard();
+    updateReportDropdown();
+
+    // Try delete from Firestore
+    if (window.db && window.deleteDoc && window.doc) {
+        const docRef = window.doc(window.db, 'students', String(studentId));
+        window.deleteDoc(docRef)
+            .then(() => console.log('[deleteStudent] deleted from Firestore:', studentId))
+            .catch(err => console.warn('[deleteStudent] Firestore delete failed:', err));
+    } else {
+        console.warn('[deleteStudent] Firestore helpers missing');
+    }
+}
+
+
+// View Student Details Popup
+function viewStudentDetails(studentId) {
+    const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+    if (!student) return alert('Student not found.');
+
+    const detailsHtml = `
+    <p><strong>Student ID:</strong> ${student.studentId}</p>
+    <p><strong>Name:</strong> ${student.firstName} ${student.lastName}</p>
+    <p><strong>Date of Birth:</strong> ${student.dob ? formatDate(student.dob) : 'N/A'}</p>
+    <p><strong>Guardian:</strong> ${student.guardian}</p>
+    <p><strong>Contact:</strong> ${student.phone || 'N/A'}</p>
+    <p><strong>Email:</strong> ${student.email || 'N/A'}</p>
+    <p><strong>Class:</strong> ${student.class || 'N/A'}</p>
+    <p><strong>Notes:</strong> ${student.notes || 'None'}</p>
+  `;
+
+    const modal = document.getElementById('student-view-modal');
+    const detailsContainer = document.getElementById('student-details-content');
+    detailsContainer.innerHTML = detailsHtml;
+    modal.style.display = 'flex';
+}
+
+document.getElementById('close-view-modal').addEventListener('click', () => {
+    document.getElementById('student-view-modal').style.display = 'none';
+});
+
+// Session Management
+function renderSessionsTable() {
+    const tbody = document.querySelector('#sessions-table tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    // Sort sessions by date (newest first)
+    const sortedSessions = [...DATA_MODELS.sessions].sort((a, b) =>
+        new Date(b.date) - new Date(a.date)
+    );
+
+    // Debug: show sessions in console
+    console.log('[renderSessionsTable] sessions (sorted):', sortedSessions);
+
+    sortedSessions.forEach(session => {
+        const row = document.createElement('tr');
+        const statusBadge = session.status === 'Available'
+            ? `<span class="status-badge status-present">Class Available</span>`
+            : `<span class="status-badge status-noclass">No Class</span>`;
+
+        const reason = session.noClassReason || 'N/A';
+
+        row.innerHTML = `
+            <td>${formatDate(session.date)}</td>
+            <td>${statusBadge}</td>
+            <td>${reason}</td>
+            <td>
+                ${session.status === 'Available' ? `
+                    <button class="btn btn-primary btn-sm take-attendance" data-id="${session.id}">
+                        <i class="fas fa-check-circle"></i> Take Attendance
+                    </button>
+                ` : ''}
+                <button class="btn btn-danger btn-sm delete-session" data-id="${session.id}">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    // Populate session dropdown for attendance using the same sortedSessions array
+    const sessionSelect = document.getElementById('session-date');
+    if (sessionSelect) {
+        sessionSelect.innerHTML = '<option value="">-- Select a session --</option>';
+
+        sortedSessions
+            .filter(s => s.status === 'Available')
+            .forEach(session => {
+                const option = document.createElement('option');
+                option.value = session.id;
+                // show date + short hint so user easily picks right session
+                option.textContent = `${formatDate(session.date)} (${session.status})`;
+                sessionSelect.appendChild(option);
+            });
+
+        // Debug: log the select options
+        console.log('[renderSessionsTable] populated session-select options count:', sessionSelect.options.length - 1);
+    }
+
+    // Add event listeners
+    document.querySelectorAll('.take-attendance').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const sessionId = this.getAttribute('data-id');
+            const sessionDateSelect = document.getElementById('session-date');
+            if (sessionDateSelect) {
+                sessionDateSelect.value = sessionId;
+            }
+            renderAttendanceForm(sessionId);
+
+            // Switch to attendance tab
+            document.querySelectorAll('[data-tab-target]').forEach(t => t.classList.remove('active'));
+            const takeAttendanceTab = document.querySelector('[data-tab-target="#take-attendance"]');
+            if (takeAttendanceTab) {
+                takeAttendanceTab.classList.add('active');
+            }
+
+            document.querySelectorAll('#attendance .tab-content').forEach(content => {
+                content.classList.remove('active');
+                if (content.id === 'take-attendance') {
+                    content.classList.add('active');
+                }
+            });
+        });
+    });
+
+    document.querySelectorAll('.delete-session').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const sessionId = this.getAttribute('data-id');
+            deleteSession(sessionId);
+        });
+    });
+}
+
+async function saveSession() {
+    const dateInput = document.getElementById('session-date-input');
+    const statusSelect = document.getElementById('session-status');
+
+    if (!dateInput || !statusSelect) return;
+
+    const date = dateInput.value;
+    const status = statusSelect.value;
+    let noClassReason = null;
+
+    if (status === 'NoClass') {
+        const reasonSelect = document.getElementById('noclass-reason');
+        if (reasonSelect) {
+            noClassReason = reasonSelect.value;
+        }
+    }
+
+    if (!date) {
+        alert('Please select a date');
+        return;
+    }
+
+    // Check for duplicate session date
+    if (DATA_MODELS.sessions.some(s => s.date === date)) {
+        alert('A session already exists for this date');
+        return;
+    }
+
+    const session = {
+        id: generateId(),
+        date,
+        status,
+        noClassReason,
+        createdAt: new Date().toISOString()
+    };
+
+    // Debug: log session about to be saved
+    console.log('[saveSession] creating session:', session);
+
+    DATA_MODELS.sessions.push(session);
+    saveData();
+
+    // *** ADD THIS BLOCK TO SAVE TO FIRESTORE ***
+    if (window.db && window.setDoc && window.doc) {
+        try {
+            const sessionRef = window.doc(window.db, 'sessions', session.id);
+            await window.setDoc(sessionRef, session);
+            console.log('[saveSession] persisted to Firestore:', session.id);
+        } catch (err) {
+            console.error('[saveSession] Firestore error:', err);
+            alert('Session saved locally but failed to sync to cloud. Error: ' + err.message);
+        }
+    }
+    // *** END OF NEW BLOCK ***
+
+    // Re-render everything that depends on sessions
+    renderSessionsTable();
+    renderDashboard();
+
+    // Close modal and reset
+    const sessionModal = document.getElementById('session-modal');
+    if (sessionModal) sessionModal.style.display = 'none';
+    if (dateInput) dateInput.value = '';
+
+    // Debug: confirm saved session persisted
+    console.log('[saveSession] sessions after save:', DATA_MODELS.sessions);
+}
+
+function deleteSession(sessionId) {
+    if (confirm('Are you sure you want to delete this session? All attendance records for this session will be lost.')) {
+        DATA_MODELS.sessions = DATA_MODELS.sessions.filter(s => s.id !== sessionId);
+        DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => a.sessionId !== sessionId);
+        saveData();
+        renderSessionsTable();
+    }
+}
+
+// Attendance Management
+function renderAttendanceForm(sessionId) {
+    const session = DATA_MODELS.sessions.find(s => s.id === sessionId);
+    if (!session) return;
+
+    const container = document.getElementById('attendance-form-container');
+    if (!container) return;
+
+    let html = `<h3>Take Attendance for ${formatDate(session.date)}</h3>`;
+
+    html += `<div class="form-group">
+                <label>Select Status for All Students:</label>
+                <div style="display: flex; gap: 10px; margin-top: 5px; flex-wrap: wrap;">
+                    <button class="btn btn-success btn-sm" onclick="setAllStatus('${sessionId}', 'Present')">All Present</button>
+                    <button class="btn btn-danger btn-sm" onclick="setAllStatus('${sessionId}', 'Absent')">All Absent</button>
+                    <button class="btn btn-warning btn-sm" onclick="setAllStatus('${sessionId}', 'Late')">All Late</button>
+                    <button class="btn btn-secondary btn-sm" onclick="setAllStatus('${sessionId}', 'Excused')">All Excused</button>
+                </div>
+            </div>`;
+
+    html += '<table><thead><tr><th>Student</th><th>Status</th></tr></thead><tbody>';
+
+    DATA_MODELS.students.forEach(student => {
+        // Get existing attendance record for this student and session
+        const existing = DATA_MODELS.attendance.find(a =>
+            a.sessionId === sessionId && a.studentId === student.studentId
+        );
+
+        const status = existing ? existing.status : 'Present';
+
+        html += `
+                    <tr>
+                        <td>${student.firstName} ${student.lastName} (${student.studentId})</td>
+                        <td>
+                            <select class="attendance-status" data-student="${student.studentId}">
+                                <option value="Present" ${status === 'Present' ? 'selected' : ''}>Present</option>
+                                <option value="Absent" ${status === 'Absent' ? 'selected' : ''}>Absent</option>
+                                <option value="Late" ${status === 'Late' ? 'selected' : ''}>Late</option>
+                                <option value="Excused" ${status === 'Excused' ? 'selected' : ''}>Excused</option>
+                            </select>
+                        </td>
+                    </tr>
+                `;
+    });
+
+    html += '</tbody></table>';
+    html += '<button class="btn btn-primary" onclick="saveAttendance(\'' + sessionId + '\')">Save Attendance</button>';
+
+    container.innerHTML = html;
+}
+
+// Global functions for attendance form
+function setAllStatus(sessionId, status) {
+    document.querySelectorAll('.attendance-status').forEach(select => {
+        select.value = status;
+    });
+}
+
+async function saveAttendance(sessionId) {
+    const inputs = document.querySelectorAll('#attendance-form-container .attendance-status');
+    if (!inputs || inputs.length === 0) return alert('No attendance inputs found');
+
+    const toWrite = [];
+    for (const select of inputs) {
+        const studentId = select.dataset.student;
+        const status = select.value;
+
+        if (studentId) {
+            const attendanceObj = {
+                sessionId,
+                studentId,
+                status,
+                updatedAt: new Date().toISOString()
+            };
+            toWrite.push(attendanceObj);
+        }
+    }
+
+    // 1. Update local model (so UI feels instant)
+    for (const a of toWrite) {
+        const idx = DATA_MODELS.attendance.findIndex(x => x.sessionId === a.sessionId && x.studentId === a.studentId);
+        if (idx === -1) {
+            DATA_MODELS.attendance.push(a);
+        } else {
+            DATA_MODELS.attendance[idx] = a;
+        }
+    }
+    // We disabled saveData(), so this call does nothing, which is fine.
+    saveData();
+
+    // 2. Persist all to Firestore
+    if (window.db && window.setDoc && window.doc) {
+        try {
+            const promises = toWrite.map(a => {
+                // Use a stable doc ID: sessionId_studentId
+                const docId = `${a.sessionId}_${a.studentId}`;
+                const docRef = window.doc(window.db, 'attendance', docId);
+                // Use setDoc with merge:true to create or update
+                return window.setDoc(docRef, a, { merge: true });
+            });
+            await Promise.all(promises);
+            console.log('[saveAttendance] persisted', toWrite.length, 'records to Firestore');
+        } catch (err) {
+            console.error('[saveAttendance] Firestore error:', err);
+            alert('Attendance saved locally but failed to sync to cloud. Error: ' + err.message);
+        }
+    } else {
+        console.warn('[saveAttendance] Firestore helpers missing; saved locally only');
+    }
+
+    alert('Attendance saved successfully!');
+}
+
+// Assessment Management
+function renderAssessmentsTable() {
+    const tbody = document.querySelector('#assessments-table tbody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '';
+
+    // Sort assessments by date (newest first)
+    const sortedAssessments = [...DATA_MODELS.assessments].sort((a, b) =>
+        new Date(b.date) - new Date(a.date)
+    );
+
+    sortedAssessments.forEach(assessment => {
+        // Count how many students have scores for this assessment
+        const scoredStudents = DATA_MODELS.scores
+            .filter(score => score.assessmentId === assessment.id)
+            .length;
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+                    <td>${assessment.name}</td>
+                    <td>${formatDate(assessment.date)}</td>
+                    <td>${assessment.totalMarks}</td>
+                    <td>${scoredStudents} of ${DATA_MODELS.students.length}</td>
+                    <td>
+                        <button class="btn btn-primary btn-sm record-scores" data-id="${assessment.id}">
+                            <i class="fas fa-edit"></i> Record Scores
+                        </button>
+                        <button class="btn btn-danger btn-sm delete-assessment" data-id="${assessment.id}">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+        tbody.appendChild(row);
+    });
+
+    // Add event listeners
+    document.querySelectorAll('.record-scores').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const assessmentId = this.getAttribute('data-id');
+            openScoresModal(assessmentId);
+        });
+    });
+
+    document.querySelectorAll('.delete-assessment').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const assessmentId = this.getAttribute('data-id');
+            deleteAssessment(assessmentId);
+        });
+    });
+}
+
+async function saveAssessment() {
+    const nameInput = document.getElementById('assessment-name');
+    const dateInput = document.getElementById('assessment-date');
+    const totalMarksInput = document.getElementById('assessment-total-marks');
+
+    if (!nameInput || !dateInput || !totalMarksInput) return;
+
+    const name = nameInput.value.trim();
+    const date = dateInput.value;
+    const totalMarks = parseInt(totalMarksInput.value);
+
+    if (!name || !date || isNaN(totalMarks) || totalMarks <= 0) {
+        alert('Please fill in all required fields correctly');
+        return;
+    }
+
+    const assessment = {
+        id: generateId(),
+        name,
+        date,
+        totalMarks
+    };
+
+    DATA_MODELS.assessments.push(assessment);
+    saveData();
+
+    // *** ADD THIS BLOCK TO SAVE TO FIRESTORE ***
+    if (window.db && window.setDoc && window.doc) {
+        try {
+            const assessmentRef = window.doc(window.db, 'assessments', assessment.id);
+            await window.setDoc(assessmentRef, assessment);
+            console.log('[saveAssessment] persisted to Firestore:', assessment.id);
+        } catch (err) {
+            console.error('[saveAssessment] Firestore error:', err);
+            alert('Assessment saved locally but failed to sync to cloud. Error: ' + err.message);
+        }
+    }
+    // *** END OF NEW BLOCK ***
+
+    renderAssessmentsTable();
+    document.getElementById('assessment-modal').style.display = 'none';
+}
+
+async function deleteAssessment(assessmentId) {
+    if (confirm('Are you sure you want to delete this assessment? All scores for this assessment will be lost.')) {
+        DATA_MODELS.assessments = DATA_MODELS.assessments.filter(a => a.id !== assessmentId);
+        DATA_MODELS.scores = DATA_MODELS.scores.filter(s => s.assessmentId !== assessmentId);
+        saveData();
+        // *** ADD THIS BLOCK TO DELETE FROM FIRESTORE ***
+        if (window.db && window.deleteDoc && window.doc) {
+            try {
+                const docRef = window.doc(window.db, 'sessions', sessionId);
+                await window.deleteDoc(docRef);
+                console.log('[deleteSession] deleted from Firestore:', sessionId);
+            } catch (err) {
+                console.warn('[deleteSession] Firestore delete failed:', err);
+            }
+        }
+        // *** END OF NEW BLOCK ***
+        renderAssessmentsTable();
+    }
+}
+
+function openScoresModal(assessmentId) {
+    window._currentScoresAssessmentId = assessmentId; // <<-- ADD THIS LINE
+    const assessment = DATA_MODELS.assessments.find(a => a.id === assessmentId);
+    if (!assessment) return;
+
+    const container = document.getElementById('scores-form-container');
+    if (!container) return;
+
+    let html = `<h3>Record Scores for ${assessment.name}</h3>`;
+    html += `<p>Date: ${formatDate(assessment.date)} | Total Marks: ${assessment.totalMarks}</p>`;
+
+    html += '<table><thead><tr><th>Student</th><th>Score</th></tr></thead><tbody>';
+
+    DATA_MODELS.students.forEach(student => {
+        // Get existing score for this student and assessment
+        const existing = DATA_MODELS.scores.find(s =>
+            s.assessmentId === assessmentId && s.studentId === student.studentId
+        );
+
+        const score = existing ? existing.marks : '';
+
+        html += `
+                    <tr>
+                        <td>${student.firstName} ${student.lastName} (${student.studentId})</td>
+                        <td>
+                            <input type="number" class="score-input" data-student="${student.studentId}" 
+                                   min="0" max="${assessment.totalMarks}" value="${score}"
+                                   placeholder="0-${assessment.totalMarks}">
+                        </td>
+                    </tr>
+                `;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+
+    document.getElementById('scores-modal').style.display = 'flex';
+}
+
+// Save scores and persist to Firestore (robust)
+// Save scores and persist to Firestore (robust)
+async function saveScores() {
+    // 1. Get the current assessment ID from the global variable
+    const assessmentId = window._currentScoresAssessmentId;
+    if (!assessmentId) {
+        return alert('Error: No assessment ID found. Please close and reopen the modal.');
+    }
+
+    const assessment = DATA_MODELS.assessments.find(a => a.id === assessmentId);
+    if (!assessment) {
+        return alert('Error: Could not find assessment details.');
+    }
+
+    // 2. Collect all student score inputs from the modal
+    const inputs = document.querySelectorAll('#scores-form-container .score-input');
+    if (!inputs || inputs.length === 0) return alert('No score inputs found to save');
+
+    const toWrite = [];
+    for (const input of inputs) {
+        const studentId = input.dataset.student;
+        if (!studentId) continue;
+
+        const marksStr = input.value.trim();
+        let marks = null; // Default to null (not submitted)
+
+        if (marksStr !== '') {
+            marks = Number(marksStr);
+            // Validate marks
+            if (isNaN(marks) || marks < 0 || marks > assessment.totalMarks) {
+                alert(`Invalid score for ${studentId}: ${marksStr}. Must be between 0 and ${assessment.totalMarks}.`);
+                input.focus();
+                return; // Stop saving
+            }
+        }
+
+        const scoreObj = {
+            assessmentId,
+            studentId,
+            marks, // can be null or a number
+            updatedAt: new Date().toISOString()
+        };
+        toWrite.push(scoreObj);
+    }
+
+    // 3. Update local DATA_MODELS.scores (upsert by assessmentId+studentId)
+    for (const s of toWrite) {
+        const idx = DATA_MODELS.scores.findIndex(x => x.assessmentId === s.assessmentId && x.studentId === s.studentId);
+        if (idx === -1) {
+            DATA_MODELS.scores.push(s);
+        } else {
+            DATA_MODELS.scores[idx] = s;
+        }
+    }
+    saveData(); // Save locally
+
+    // 4. Persist each to Firestore using stable doc id = assessmentId_studentId
+    if (window.db && window.setDoc && window.doc) {
+        try {
+            const promises = toWrite.map(s => {
+                const docId = `${s.assessmentId}_${s.studentId}`; // Stable composite key
+                const docRef = window.doc(window.db, 'scores', docId);
+                return window.setDoc(docRef, s, { merge: true }); // Use merge:true for safety
+            });
+            await Promise.all(promises);
+            console.log('[saveScores] persisted', toWrite.length, 'scores to Firestore');
+        } catch (err) {
+            console.error('[saveScores] Firestore error:', err);
+            alert('Scores saved locally but failed to sync to cloud. Error: ' + err.message);
+            // keep local state even if Firestore fails
+        }
+    } else {
+        console.warn('[saveScores] Firestore helpers missing; saved locally only');
+    }
+
+    // 5. UI refresh
+    renderAssessmentsTable(); // Update the main table
+    document.getElementById('scores-modal').style.display = 'none'; // Close modal
+    window._currentScoresAssessmentId = null; // Clear the global ID
+    alert('Scores saved successfully!');
+}
+
+
+// function saveScores() {
+//     const container = document.getElementById('scores-form-container');
+//     if (!container) return;
+
+//     const heading = container.querySelector('h3');
+//     if (!heading) return;
+
+//     const assessmentName = heading.textContent.replace('Record Scores for ', '');
+//     const assessment = DATA_MODELS.assessments.find(a => a.name === assessmentName);
+
+//     if (!assessment) return;
+
+//     // Remove existing scores for this assessment
+//     DATA_MODELS.scores = DATA_MODELS.scores.filter(s => s.assessmentId !== assessment.id);
+
+//     // Add new scores
+//     document.querySelectorAll('.score-input').forEach(input => {
+//         const studentId = input.getAttribute('data-student');
+//         const score = parseInt(input.value);
+
+//         if (!isNaN(score) && score >= 0 && score <= assessment.totalMarks) {
+//             DATA_MODELS.scores.push({
+//                 assessmentId: assessment.id,
+//                 studentId,
+//                 marks: score
+//             });
+//         }
+//     });
+
+//     saveData();
+//     renderAssessmentsTable();
+//     document.getElementById('scores-modal').style.display = 'none';
+//     alert('Scores saved successfully!');
+// }
+
+// Report Generation
+function updateReportDropdown() {
+    const select = document.getElementById('report-student');
+    if (!select) return;
+
+    select.innerHTML = '<option value="">-- Select a student --</option>';
+
+    DATA_MODELS.students.forEach(student => {
+        const option = document.createElement('option');
+        option.value = student.studentId;
+        option.textContent = `${student.firstName} ${student.lastName} (${student.studentId})`;
+        select.appendChild(option);
+    });
+}
+
+function generateStudentReport(studentId) {
+    const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+    if (!student) return;
+
+    const container = document.getElementById('report-content');
+    if (!container) return;
+
+    // Calculate attendance statistics
+    const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+    const totalSessionsHeld = availableSessions.length;
+
+    const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === studentId);
+    const presentCount = studentAttendance.filter(a =>
+        a.status === 'Present' || a.status === 'Late'
+    ).length;
+
+    const attendancePercentage = totalSessionsHeld > 0
+        ? Math.round((presentCount / totalSessionsHeld) * 100)
+        : 0;
+
+    // Get student's assessments and scores
+    const studentScores = DATA_MODELS.scores.filter(s => s.studentId === studentId);
+    const assessmentDetails = studentScores.map(score => {
+        const assessment = DATA_MODELS.assessments.find(a => a.id === score.assessmentId);
+        return {
+            name: assessment ? assessment.name : 'Unknown',
+            date: assessment ? assessment.date : '',
+            totalMarks: assessment ? assessment.totalMarks : 0,
+            marks: score.marks
+        };
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    // Generate HTML for report
+    let html = `
+                <div class="print-only">
+                    <h2>Student Report</h2>
+                    <p>Generated on: ${formatDate(new Date().toISOString())}</p>
+                </div>
+                
+                <div class="report-section">
+                    <h3>Student Information</h3>
+                    <table>
+                        <tr><td><strong>Student ID:</strong></td><td>${student.studentId}</td></tr>
+                        <tr><td><strong>Name:</strong></td><td>${student.firstName} ${student.lastName}</td></tr>
+                        <tr><td><strong>Date of Birth:</strong></td><td>${student.dob ? formatDate(student.dob) : 'N/A'}</td></tr>
+                        <tr><td><strong>Class/Section:</strong></td><td>${student.class || 'N/A'}</td></tr>
+                        <tr><td><strong>Guardian:</strong></td><td>${student.guardian}</td></tr>
+                        <tr><td><strong>Phone:</strong></td><td>${student.phone || 'N/A'}</td></tr>
+                        <tr><td><strong>Email:</strong></td><td>${student.email || 'N/A'}</td></tr>
+                        <tr><td><strong>Notes:</strong></td><td>${student.notes || 'None'}</td></tr>
+                    </table>
+                </div>
+                
+                <div class="report-section">
+                    <h3>Attendance Summary</h3>
+                    <table>
+                        <tr><td><strong>Total Classes Held:</strong></td><td>${totalSessionsHeld}</td></tr>
+                        <tr><td><strong>Sessions Attended:</strong></td><td>${presentCount}</td></tr>
+                        <tr><td><strong>Attendance Percentage:</strong></td><td>${attendancePercentage}%</td></tr>
+                    </table>
+                </div>
+                
+                <div class="report-section">
+                    <h3>Assessment History</h3>
+                    ${assessmentDetails.length > 0 ? `
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Assessment</th>
+                                    <th>Date</th>
+                                    <th>Marks Obtained</th>
+                                    <th>Total Marks</th>
+                                    <th>Percentage</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${assessmentDetails.map(detail => `
+                                    <tr>
+                                        <td>${detail.name}</td>
+                                        <td>${formatDate(detail.date)}</td>
+                                        <td>${detail.marks}</td>
+                                        <td>${detail.totalMarks}</td>
+                                        <td>${Math.round((detail.marks / detail.totalMarks) * 100)}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    ` : '<p>No assessments recorded for this student.</p>'}
+                </div>
+                
+                <div class="report-section">
+                    <h3>Performance Visualization</h3>
+                    <div class="chart-container">
+                        <canvas id="marks-chart"></canvas>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="attendance-chart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="no-print" style="margin-top: 30px;">
+                    <button class="btn btn-primary" onclick="window.print()">
+                        <i class="fas fa-print"></i> Print Report
+                    </button>
+
+                    <!-- PDF Export button: calls downloadReportPDF(studentId) -->
+                    <button class="btn btn-success" onclick="downloadReportPDF('${studentId}')">
+                        <i class="fas fa-file-pdf"></i> Export as PDF
+                    </button>
+
+                    <!-- CSV Export kept as fallback -->
+                    <button class="btn btn-success" onclick="exportStudentReport('${studentId}')">
+                        <i class="fas fa-file-export"></i> Export as CSV
+                    </button>
+                </div>
+
+            `;
+
+    container.innerHTML = html;
+
+    // Render charts
+    setTimeout(() => {
+        renderMarksChart(assessmentDetails);
+        renderAttendanceChart(studentId);
+    }, 100);
+}
+
+// Replace the existing downloadReportPDF(studentId) with this improved version
+function downloadReportPDF(studentId) {
+    const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+    if (!student) { alert('Student not found'); return; }
+
+    const reportContainer = document.getElementById('report-content');
+    if (!reportContainer) { alert('Report not generated yet. Click "Generate Student Report" first.'); return; }
+
+    // --- 1) grab snapshot images from the live Chart.js instances (if any) ---
+    let marksDataUrl = null;
+    let attendanceDataUrl = null;
+    try {
+        if (window.marksChart && typeof window.marksChart.toBase64Image === 'function') {
+            marksDataUrl = window.marksChart.toBase64Image();
+        }
+    } catch (e) {
+        console.warn('Could not get marks chart image:', e);
+    }
+    try {
+        if (window.attendanceChart && typeof window.attendanceChart.toBase64Image === 'function') {
+            attendanceDataUrl = window.attendanceChart.toBase64Image();
+        }
+    } catch (e) {
+        console.warn('Could not get attendance chart image:', e);
+    }
+
+    // --- 2) clone the report DOM so we don't mutate the UI ---
+    const clone = reportContainer.cloneNode(true);
+
+    // remove interactive UI from the clone
+    clone.querySelectorAll('button, input, select, .no-print').forEach(n => n.remove());
+
+    // Insert a nicer header (logo, student name, generated date)
+    const header = document.createElement('div');
+    header.style.display = 'flex';
+    header.style.alignItems = 'center';
+    header.style.justifyContent = 'space-between';
+    header.style.marginBottom = '12px';
+    header.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px">
+            <div style="width:56px;height:56px;border-radius:8px;background:#3498db;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px">
+                &#x271D;
+            </div>
+            <div>
+                <div style="font-size:18px;font-weight:700;color:#2c3e50">Student Report — ${escapeHtml(student.firstName + ' ' + student.lastName)}</div>
+                <div style="font-size:12px;color:#666">Generated: ${new Date().toLocaleString()}</div>
+            </div>
+        </div>
+        <div style="text-align:right; font-size:12px; color:#666">Catechism Class — Student Reports</div>
+    `;
+    clone.insertBefore(header, clone.firstChild);
+
+    // --- 3) replace cloned <canvas> elements with <img> using captured data URLs ---
+    // helper to replace a canvas node (if present)
+    function replaceCanvasWithImage(containerClone, selectorId, dataUrl) {
+        const canvasNode = containerClone.querySelector(`#${selectorId}`);
+        if (!canvasNode) return;
+        const img = document.createElement('img');
+        img.style.width = '100%';
+        img.style.maxWidth = '100%';
+        img.style.display = 'block';
+        img.style.margin = '8px 0';
+        img.alt = selectorId;
+        if (dataUrl) {
+            img.src = dataUrl;
+        } else {
+            // fallback: small placeholder if chart not available
+            img.src = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+                `<svg xmlns="http://www.w3.org/2000/svg" width="800" height="300">
+                    <rect width="100%" height="100%" fill="#f5f7fa"/>
+                    <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#999" font-family="Arial" font-size="18">
+                        Chart not available
+                    </text>
+                </svg>`
+            );
+        }
+        canvasNode.parentNode.replaceChild(img, canvasNode);
+    }
+
+    replaceCanvasWithImage(clone, 'marks-chart', marksDataUrl);
+    replaceCanvasWithImage(clone, 'attendance-chart', attendanceDataUrl);
+
+    // --- 4) inject lightweight print CSS into the clone (so tables & headings look good) ---
+    const styleEl = document.createElement('style');
+    styleEl.innerHTML = `
+        body{font-family: Arial, sans-serif; color:#222}
+        .report-section h3 { color: #2c3e50; margin-bottom:8px; }
+        table { width:100%; border-collapse: collapse; margin-bottom:12px; }
+        table th, table td { border:1px solid #e5e7eb; padding:8px; text-align:left; font-size:12px; }
+        table th { background: #f7fafc; font-weight:700; }
+        .report-section { margin-bottom: 16px; }
+        /* tighten spacing for PDF */
+        .chart-container { height: 280px; margin-bottom: 8px; }
+    `;
+    // add style into a wrapper so html2pdf picks it up
+    const wrapper = document.createElement('div');
+    wrapper.style.width = '1100px'; // wider for landscape PDF
+    wrapper.style.margin = '0 auto';
+    wrapper.style.background = '#fff';
+    wrapper.style.padding = '18px';
+    wrapper.appendChild(styleEl);
+    wrapper.appendChild(clone);
+
+    // --- 5) configure html2pdf options (landscape for wide charts + higher scale for clarity) ---
+    const filename = `Report_${student.studentId}_${(new Date()).toISOString().slice(0, 10)}.pdf`;
+    const opt = {
+        margin: [10, 10, 10, 10], // mm
+        filename: filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2.5, useCORS: true, logging: false, allowTaint: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+    };
+
+    // Visual feedback for user (if a button exists in the page)
+    const exportBtn = document.querySelector('.no-print button[onclick^="downloadReportPDF"]');
+    if (exportBtn) { exportBtn.disabled = true; const oldText = exportBtn.textContent; exportBtn.textContent = 'Generating PDF...'; }
+
+    // --- 6) generate PDF ---
+    html2pdf().set(opt).from(wrapper).save().then(() => {
+        if (exportBtn) { exportBtn.disabled = false; exportBtn.textContent = 'Export as PDF'; }
+    }).catch(err => {
+        console.error('PDF export failed', err);
+        alert('Failed to generate PDF. See console for details.');
+        if (exportBtn) { exportBtn.disabled = false; exportBtn.textContent = 'Export as PDF'; }
+    });
+}
+
+// small helper to safely escape HTML content for header text
+function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>"']/g, function (m) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m]); });
+}
+
+function renderMarksChart(assessmentDetails) {
+    const canvas = document.getElementById('marks-chart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart if it exists
+    if (window.marksChart) {
+        window.marksChart.destroy();
+    }
+
+    // Prepare data
+    const labels = assessmentDetails.map(d => d.name);
+    const percentages = assessmentDetails.map(d => Math.round((d.marks / d.totalMarks) * 100));
+
+    window.marksChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [{
+                label: 'Performance (%)',
+                data: percentages,
+                borderColor: '#3498db',
+                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                borderWidth: 2,
+                fill: true,
+                tension: 0.3
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Percentage'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function renderAttendanceChart(studentId) {
+    const canvas = document.getElementById('attendance-chart');
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+
+    // Destroy existing chart if it exists
+    if (window.attendanceChart) {
+        window.attendanceChart.destroy();
+    }
+
+    // Group attendance by month
+    const monthlyAttendance = {};
+
+    DATA_MODELS.sessions
+        .filter(s => s.status === 'Available')
+        .forEach(session => {
+            const month = session.date.substring(0, 7); // YYYY-MM
+            if (!monthlyAttendance[month]) {
+                monthlyAttendance[month] = { total: 0, present: 0 };
+            }
+            monthlyAttendance[month].total++;
+
+            const attendance = DATA_MODELS.attendance.find(a =>
+                a.sessionId === session.id && a.studentId === studentId
+            );
+
+            if (attendance && (attendance.status === 'Present' || attendance.status === 'Late')) {
+                monthlyAttendance[month].present++;
+            }
+        });
+
+    // Prepare data
+    const months = Object.keys(monthlyAttendance).sort();
+    const percentages = months.map(month => {
+        const data = monthlyAttendance[month];
+        return data.total > 0 ? Math.round((data.present / data.total) * 100) : 0;
+    });
+
+    window.attendanceChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: months.map(m => m.replace('-', '/')),
+            datasets: [{
+                label: 'Attendance (%)',
+                data: percentages,
+                backgroundColor: '#27ae60',
+                borderColor: '#219653',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    max: 100,
+                    title: {
+                        display: true,
+                        text: 'Percentage'
+                    }
+                }
+            }
+        }
+    });
+}
+
+function exportStudentReport(studentId) {
+    const student = DATA_MODELS.students.find(s => s.studentId === studentId);
+    if (!student) return;
+
+    // Create CSV content
+    let csvContent = "Student Report\n";
+    csvContent += `Generated on:,${formatDate(new Date().toISOString())}\n\n`;
+
+    csvContent += "Student Information\n";
+    csvContent += "Field,Value\n";
+    csvContent += `Student ID,${student.studentId}\n`;
+    csvContent += `Name,${student.firstName} ${student.lastName}\n`;
+    csvContent += `Date of Birth,${student.dob ? formatDate(student.dob) : 'N/A'}\n`;
+    csvContent += `Class/Section,${student.class || 'N/A'}\n`;
+    csvContent += `Guardian,${student.guardian}\n`;
+    csvContent += `Phone,${student.phone || 'N/A'}\n`;
+    csvContent += `Email,${student.email || 'N/A'}\n`;
+    csvContent += `Notes,${student.notes || 'None'}\n\n`;
+
+    // Attendance summary
+    const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+    const totalSessionsHeld = availableSessions.length;
+
+    const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === studentId);
+    const presentCount = studentAttendance.filter(a =>
+        a.status === 'Present' || a.status === 'Late'
+    ).length;
+
+    const attendancePercentage = totalSessionsHeld > 0
+        ? Math.round((presentCount / totalSessionsHeld) * 100)
+        : 0;
+
+    csvContent += "Attendance Summary\n";
+    csvContent += "Metric,Value\n";
+    csvContent += `Total Classes Held,${totalSessionsHeld}\n`;
+    csvContent += `Sessions Attended,${presentCount}\n`;
+    csvContent += `Attendance Percentage,${attendancePercentage}%\n\n`;
+
+    // Assessment history
+    const studentScores = DATA_MODELS.scores.filter(s => s.studentId === studentId);
+    const assessmentDetails = studentScores.map(score => {
+        const assessment = DATA_MODELS.assessments.find(a => a.id === score.assessmentId);
+        return {
+            name: assessment ? assessment.name : 'Unknown',
+            date: assessment ? assessment.date : '',
+            totalMarks: assessment ? assessment.totalMarks : 0,
+            marks: score.marks
+        };
+    }).sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    csvContent += "Assessment History\n";
+    csvContent += "Assessment,Date,Marks Obtained,Total Marks,Percentage\n";
+
+    assessmentDetails.forEach(detail => {
+        const percentage = Math.round((detail.marks / detail.totalMarks) * 100);
+        csvContent += `"${detail.name}",${formatDate(detail.date)},${detail.marks},${detail.totalMarks},${percentage}%\n`;
+    });
+
+    // Download CSV
+    downloadCSV(csvContent, `student-report-${student.studentId}.csv`);
+}
+
+// Dashboard
+function renderDashboard() {
+    const totalStudentsEl = document.getElementById('total-students');
+    if (totalStudentsEl) {
+        totalStudentsEl.textContent = DATA_MODELS.students.length;
+    }
+
+    const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+    const classesHeldEl = document.getElementById('classes-held');
+    if (classesHeldEl) {
+        classesHeldEl.textContent = availableSessions.length;
+    }
+
+    // Calculate average attendance
+    if (DATA_MODELS.students.length > 0 && availableSessions.length > 0) {
+        let totalAttendance = 0;
+
+        DATA_MODELS.students.forEach(student => {
+            const studentAttendance = DATA_MODELS.attendance.filter(a => a.studentId === student.studentId);
+            const presentCount = studentAttendance.filter(a =>
+                a.status === 'Present' || a.status === 'Late'
+            ).length;
+
+            const attendancePercentage = Math.round((presentCount / availableSessions.length) * 100);
+            totalAttendance += attendancePercentage;
+        });
+
+        const avgAttendance = Math.round(totalAttendance / DATA_MODELS.students.length);
+        const avgAttendanceEl = document.getElementById('avg-attendance');
+        if (avgAttendanceEl) {
+            avgAttendanceEl.textContent = `${avgAttendance}%`;
+        }
+    } else {
+        const avgAttendanceEl = document.getElementById('avg-attendance');
+        if (avgAttendanceEl) {
+            avgAttendanceEl.textContent = '0%';
+        }
+    }
+
+    // Upcoming sessions (next 7 days)
+    const today = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(today.getDate() + 7);
+
+    const upcomingSessions = DATA_MODELS.sessions.filter(session => {
+        const sessionDate = new Date(session.date);
+        return sessionDate >= today && sessionDate <= nextWeek;
+    });
+
+    const upcomingSessionsEl = document.getElementById('upcoming-sessions');
+    if (upcomingSessionsEl) {
+        upcomingSessionsEl.textContent = upcomingSessions.length;
+    }
+
+    // Recent activity
+    const recentActivity = [];
+
+    // Add recent sessions
+    const recentSessions = [...DATA_MODELS.sessions]
+        .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+        .slice(0, 3);
+
+    recentSessions.forEach(session => {
+        recentActivity.push({
+            date: session.createdAt,
+            text: `New session created for ${formatDate(session.date)}`
+        });
+    });
+
+    // Add recent assessments
+    const recentAssessments = [...DATA_MODELS.assessments]
+        .sort((a, b) => new Date(b.date) - new Date(a.date))
+        .slice(0, 3);
+
+    recentAssessments.forEach(assessment => {
+        recentActivity.push({
+            date: assessment.date,
+            text: `New assessment "${assessment.name}" scheduled for ${formatDate(assessment.date)}`
+        });
+    });
+
+    // Sort by date and display
+    recentActivity.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    const activityContainer = document.getElementById('recent-activity');
+    if (activityContainer) {
+        if (recentActivity.length > 0) {
+            let html = '<ul>';
+            recentActivity.slice(0, 5).forEach(activity => {
+                html += `<li>${activity.text} <small>(${formatDateTime(activity.date)})</small></li>`;
+            });
+            html += '</ul>';
+            activityContainer.innerHTML = html;
+        } else {
+            activityContainer.innerHTML = '<p>No recent activity</p>';
+        }
+    }
+}
+
+// CSV Import
+function handleCSVUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function (e) {
+        const content = e.target.result;
+        parseCSV(content);
+    };
+    reader.readAsText(file);
+}
+
+function parseCSV(content) {
+    const lines = content.split('\n').filter(line => line.trim() !== '');
+    if (lines.length < 2) {
+        alert('CSV file must contain at least a header row and one data row');
+        return;
+    }
+
+    const headers = lines[0].split(',').map(h => h.trim());
+    const expectedHeaders = ['studentId', 'firstName', 'lastName', 'dob(YYYY-MM-DD)', 'guardian', 'phone', 'email', 'notes'];
+
+    // Validate headers
+    if (headers.length !== expectedHeaders.length ||
+        !headers.every((h, i) => h === expectedHeaders[i])) {
+        alert('Invalid CSV format. Please check the required headers.');
+        return;
+    }
+
+    // Parse data rows
+    const students = [];
+    const errors = [];
+
+    for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+
+        if (values.length !== headers.length) {
+            errors.push(`Row ${i + 1}: Invalid number of columns`);
+            continue;
+        }
+
+        const student = {
+            studentId: values[0],
+            firstName: values[1],
+            lastName: values[2],
+            dob: values[3],
+            guardian: values[4],
+            phone: values[5],
+            email: values[6],
+            notes: values[7]
+        };
+
+        // Validate required fields
+        if (!student.studentId || !student.firstName || !student.lastName || !student.guardian) {
+            errors.push(`Row ${i + 1}: Missing required fields`);
+            continue;
+        }
+
+        // Validate date format
+        if (student.dob && !/^\d{4}-\d{2}-\d{2}$/.test(student.dob)) {
+            errors.push(`Row ${i + 1}: Invalid date format (should be YYYY-MM-DD)`);
+            continue;
+        }
+
+        // Check for duplicate student ID
+        if (DATA_MODELS.students.some(s => s.studentId === student.studentId) ||
+            students.some(s => s.studentId === student.studentId)) {
+            errors.push(`Row ${i + 1}: Duplicate student ID`);
+            continue;
+        }
+
+        students.push(student);
+    }
+
+    // Display preview or errors
+    const container = document.getElementById('preview-container');
+    if (!container) return;
+
+    if (errors.length > 0) {
+        let errorHtml = '<h4>Validation Errors:</h4><ul>';
+        errors.forEach(error => {
+            errorHtml += `<li>${error}</li>`;
+        });
+        errorHtml += '</ul>';
+        container.innerHTML = errorHtml;
+        const importCsvBtn = document.getElementById('import-csv-btn');
+        if (importCsvBtn) {
+            importCsvBtn.disabled = true;
+        }
+    } else {
+        let previewHtml = `<h4>Preview (${students.length} students):</h4>`;
+        previewHtml += '<table><thead><tr>';
+        headers.forEach(header => {
+            previewHtml += `<th>${header}</th>`;
+        });
+        previewHtml += '</tr></thead><tbody>';
+
+        students.slice(0, 5).forEach(student => {
+            previewHtml += '<tr>';
+            previewHtml += `<td>${student.studentId}</td>`;
+            previewHtml += `<td>${student.firstName}</td>`;
+            previewHtml += `<td>${student.lastName}</td>`;
+            previewHtml += `<td>${student.dob || ''}</td>`;
+            previewHtml += `<td>${student.guardian}</td>`;
+            previewHtml += `<td>${student.phone || ''}</td>`;
+            previewHtml += `<td>${student.email || ''}</td>`;
+            previewHtml += `<td>${student.notes || ''}</td>`;
+            previewHtml += '</tr>';
+        });
+
+        if (students.length > 5) {
+            previewHtml += `<tr><td colspan="${headers.length}">... and ${students.length - 5} more students</td></tr>`;
+        }
+
+        previewHtml += '</tbody></table>';
+        container.innerHTML = previewHtml;
+        const importCsvBtn = document.getElementById('import-csv-btn');
+        if (importCsvBtn) {
+            importCsvBtn.disabled = false;
+            importCsvBtn.dataset.students = JSON.stringify(students);
+        }
+    }
+}
+
+function importStudentsFromCSV() {
+    const importCsvBtn = document.getElementById('import-csv-btn');
+    if (!importCsvBtn) return;
+
+    const studentsData = importCsvBtn.dataset.students;
+    if (!studentsData) return;
+
+    const students = JSON.parse(studentsData); // expecting an array
+
+    // Add each student; avoid duplicates
+    students.forEach(s => {
+        if (!DATA_MODELS.students.some(existing => existing.studentId === s.studentId)) {
+            DATA_MODELS.students.push(s);
+        }
+    });
+
+    saveData();
+    renderStudentsTable();
+    renderDashboard();
+    updateReportDropdown();
+
+    document.getElementById('import-modal').style.display = 'none';
+    document.getElementById('csv-file').value = '';
+    const previewContainer = document.getElementById('preview-container');
+    if (previewContainer) {
+        previewContainer.innerHTML = '<p>Preview will appear here after selecting a file</p>';
+    }
+    importCsvBtn.disabled = true;
+    delete importCsvBtn.dataset.students;
+
+    alert(`${students.length} students imported successfully!`);
+}
+
+
+// Utility Functions
+function generateId() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+}
+
+function formatDate(dateString) {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric'
+    });
+}
+
+function formatDateTime(dateTimeString) {
+    if (!dateTimeString) return 'N/A';
+    const date = new Date(dateTimeString);
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+function downloadCSV(content, filename) {
+    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
+// *** ADD THIS NEW FUNCTION ***
+
+function stopRealtimeListeners() {
+    if (window.realtimeUnsubscribers && window.realtimeUnsubscribers.length > 0) {
+        console.log('[realtime] Stopping', window.realtimeUnsubscribers.length, 'listeners...');
+        window.realtimeUnsubscribers.forEach(unsub => {
+            try {
+                unsub(); // Call the unsub function from Firebase
+            } catch (e) {
+                console.warn('[realtime] Error stopping listener', e);
+            }
+        });
+        window.realtimeUnsubscribers = []; // Clear the array
+    } else {
+        console.log('[realtime] No listeners to stop.');
+    }
+}
+
+// ---------------- Real-time listeners (Firestore) ----------------
+// Keeps DATA_MODELS in sync with Firestore collections in real time.
+// Uses window.onSnapshot, window.collection, window.db exposed by the module.
+
+window.realtimeUnsubscribers = []; // keep unsub functions to stop later
+
+function applyDocChangeToArray(arr, idKey, docData, changeType) {
+    const id = docData[idKey] || docData.id || docData.studentId || docData.sessionId;
+    if (changeType === 'removed') {
+        const idx = arr.findIndex(x => (x[idKey] || x.id || x.studentId || x.sessionId) == id);
+        if (idx !== -1) arr.splice(idx, 1);
+        return;
+    }
+
+    // added/modified -> upsert
+    const idx = arr.findIndex(x => (x[idKey] || x.id || x.studentId || x.sessionId) == id);
+    if (idx === -1) {
+        arr.push(docData);
+    } else {
+        arr[idx] = docData;
+    }
+}
+
+function startRealtimeListeners() {
+    // defensive: require Firestore onSnapshot
+    if (!window.db || !window.onSnapshot || !window.collection) {
+        console.warn('[realtime] Firestore realtime not available');
+        return;
+    }
+
+    stopRealtimeListeners(); // prevent double listeners
+
+    // students (doc id = studentId)
+    const studentsColl = window.collection(window.db, 'students');
+    const unsubStudents = window.onSnapshot(studentsColl, snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const data = change.doc.data();
+            if (change.type === 'removed') {
+                applyDocChangeToArray(DATA_MODELS.students, 'studentId', data, 'removed');
+            } else {
+                // ensure studentId exists (if doc id used as key, doc.data() may lack it)
+                if (!data.studentId && change.doc.id) data.studentId = change.doc.id;
+                applyDocChangeToArray(DATA_MODELS.students, 'studentId', data, change.type);
+            }
+        });
+        saveData();
+        renderStudentsTable();
+        updateReportDropdown();
+        renderDashboard();
+        console.log('[realtime] students sync', DATA_MODELS.students.length);
+    }, err => console.error('[realtime] students listener error', err));
+    window.realtimeUnsubscribers.push(unsubStudents);
+
+    // sessions
+    const sessionsColl = window.collection(window.db, 'sessions');
+    const unsubSessions = window.onSnapshot(sessionsColl, snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const data = change.doc.data();
+            if (!data.id && change.doc.id) data.id = change.doc.id;
+            applyDocChangeToArray(DATA_MODELS.sessions, 'id', data, change.type);
+        });
+        saveData();
+        renderSessionsTable();
+        renderAttendanceForm(document.getElementById('session-date')?.value || '');
+        renderDashboard();
+        console.log('[realtime] sessions sync', DATA_MODELS.sessions.length);
+    }, err => console.error('[realtime] sessions listener error', err));
+    window.realtimeUnsubscribers.push(unsubSessions);
+
+    // attendance (no stable id, we'll use composite key sessionId+studentId)
+    const attendanceColl = window.collection(window.db, 'attendance');
+    const unsubAttendance = window.onSnapshot(attendanceColl, snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const data = change.doc.data();
+            // we can't rely on a single id field; we'll replace entries by sessionId+studentId
+            if (change.type === 'removed') {
+                DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => !(a.sessionId === data.sessionId && a.studentId === data.studentId));
+            } else {
+                // add/modify -> replace any matching entry
+                DATA_MODELS.attendance = DATA_MODELS.attendance.filter(a => !(a.sessionId === data.sessionId && a.studentId === data.studentId));
+                DATA_MODELS.attendance.push(data);
+            }
+        });
+        saveData();
+        // if currently taking attendance for a selected session, re-render form
+        const currentSession = document.getElementById('session-date')?.value;
+        if (currentSession) renderAttendanceForm(currentSession);
+        console.log('[realtime] attendance sync', DATA_MODELS.attendance.length);
+    }, err => console.error('[realtime] attendance listener error', err));
+    window.realtimeUnsubscribers.push(unsubAttendance);
+    // assessments
+    // scores (listen to scores changes and merge by assessmentId + studentId)
+    const scoresColl = window.collection(window.db, 'scores');
+    const unsubScores = window.onSnapshot(scoresColl, snapshot => {
+        snapshot.docChanges().forEach(change => {
+            const data = change.doc.data() || {};
+
+            // Ensure assessmentId & studentId exist (try to salvage from doc id if necessary)
+            if (!data.assessmentId || !data.studentId) {
+                const did = change.doc.id || '';
+                const parts = did.split('_');
+                if (parts.length >= 2) {
+                    data.assessmentId = data.assessmentId || parts[0];
+                    // join remaining parts in case studentId had underscores
+                    data.studentId = data.studentId || parts.slice(1).join('_');
+                }
+            }
+
+            if (!data.assessmentId || !data.studentId) {
+                // Can't index this score reliably — skip it (log for debugging)
+                console.warn('[realtime][scores] skipping doc missing keys', change.doc.id, data);
+                return;
+            }
+
+            if (change.type === 'removed') {
+                DATA_MODELS.scores = DATA_MODELS.scores.filter(s => !(s.assessmentId === data.assessmentId && s.studentId === data.studentId));
+            } else {
+                // upsert by composite key assessmentId + studentId
+                DATA_MODELS.scores = DATA_MODELS.scores.filter(s => !(s.assessmentId === data.assessmentId && s.studentId === data.studentId));
+                DATA_MODELS.scores.push(data);
+            }
+        });
+
+        // persist locally and refresh UI that depends on scores
+        saveData();
+        renderAssessmentsTable();
+
+        // if scores modal is open, refresh its inputs
+        const scoresModal = document.getElementById('scores-modal');
+        const currentModalAssessmentId = window._currentScoresAssessmentId;
+
+        if (currentModalAssessmentId &&
+            typeof openScoresModal === 'function' &&
+            scoresModal &&
+            (scoresModal.style.display === 'flex' || scoresModal.style.display === 'block')) {
+            console.log('[realtime] Refreshing scores modal for:', currentModalAssessmentId);
+            openScoresModal(currentModalAssessmentId);
+        }
+
+        console.log('[realtime] scores sync', DATA_MODELS.scores.length);
+    }, err => console.error('[realtime] scores listener error', err));
+    window.realtimeUnsubscribers.push(unsubScores);
+}
+
