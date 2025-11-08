@@ -2035,6 +2035,9 @@ function handleCSVUpload(event) {
     reader.readAsText(file);
 }
 
+//
+// 🚀 REPLACEMENT for parseCSV(content) function
+//
 function parseCSV(content) {
     const lines = content.split('\n').filter(line => line.trim() !== '');
     if (lines.length < 2) {
@@ -2043,14 +2046,27 @@ function parseCSV(content) {
     }
 
     const headers = lines[0].split(',').map(h => h.trim());
-    const expectedHeaders = ['studentId', 'firstName', 'lastName', 'dob(YYYY-MM-DD)', 'guardian', 'phone', 'email', 'notes'];
 
-    // Validate headers
-    if (headers.length !== expectedHeaders.length ||
-        !headers.every((h, i) => h === expectedHeaders[i])) {
-        alert('Invalid CSV format. Please check the required headers.');
+    // --- THIS IS THE FIX FOR PROBLEM #1 ---
+    // Find the index of each required/optional header.
+    // This is flexible and doesn't require a strict order.
+    const headerIndices = {
+        studentId: headers.indexOf('studentId'),
+        firstName: headers.indexOf('firstName'),
+        lastName: headers.indexOf('lastName'),
+        dob: headers.indexOf('dob(YYYY-MM-DD)'),
+        guardian: headers.indexOf('guardian'),
+        phone: headers.indexOf('phone'),
+        email: headers.indexOf('email'),
+        notes: headers.indexOf('notes')
+    };
+
+    // Check that minimally required headers are present
+    if (headerIndices.studentId === -1 || headerIndices.firstName === -1) {
+        alert('Invalid CSV format. Header must contain at least "studentId" and "firstName".');
         return;
     }
+    // --- END OF FIX #1 ---
 
     // Parse data rows
     const students = [];
@@ -2059,29 +2075,25 @@ function parseCSV(content) {
     for (let i = 1; i < lines.length; i++) {
         const values = lines[i].split(',').map(v => v.trim());
 
-        if (values.length !== headers.length) {
-            errors.push(`Row ${i + 1}: Invalid number of columns`);
-            continue;
-        }
-
+        // Use the header indices to build the student object
         const student = {
-            studentId: values[0],
-            firstName: values[1],
-            lastName: values[2],
-            dob: values[3],
-            guardian: values[4],
-            phone: values[5],
-            email: values[6],
-            notes: values[7]
+            studentId: values[headerIndices.studentId],
+            firstName: values[headerIndices.firstName],
+            lastName: headerIndices.lastName !== -1 ? values[headerIndices.lastName] : '',
+            dob: headerIndices.dob !== -1 ? values[headerIndices.dob] : '',
+            guardian: headerIndices.guardian !== -1 ? values[headerIndices.guardian] : '',
+            phone: headerIndices.phone !== -1 ? values[headerIndices.phone] : '',
+            email: headerIndices.email !== -1 ? values[headerIndices.email] : '',
+            notes: headerIndices.notes !== -1 ? values[headerIndices.notes] : ''
         };
 
-        // Validate required fields
+        // Validate required fields (now only studentId and firstName)
         if (!student.studentId || !student.firstName) {
-            errors.push(`Row ${i + 1}: Missing required fields`);
+            errors.push(`Row ${i + 1}: Missing required fields (studentId, firstName)`);
             continue;
         }
 
-        // Validate date format
+        // Validate date format (if dob was provided)
         if (student.dob && !/^\d{4}-\d{2}-\d{2}$/.test(student.dob)) {
             errors.push(`Row ${i + 1}: Invalid date format (should be YYYY-MM-DD)`);
             continue;
@@ -2100,6 +2112,7 @@ function parseCSV(content) {
     // Display preview or errors
     const container = document.getElementById('preview-container');
     if (!container) return;
+    const importCsvBtn = document.getElementById('import-csv-btn');
 
     if (errors.length > 0) {
         let errorHtml = '<h4>Validation Errors:</h4><ul>';
@@ -2108,7 +2121,6 @@ function parseCSV(content) {
         });
         errorHtml += '</ul>';
         container.innerHTML = errorHtml;
-        const importCsvBtn = document.getElementById('import-csv-btn');
         if (importCsvBtn) {
             importCsvBtn.disabled = true;
         }
@@ -2124,9 +2136,9 @@ function parseCSV(content) {
             previewHtml += '<tr>';
             previewHtml += `<td>${student.studentId}</td>`;
             previewHtml += `<td>${student.firstName}</td>`;
-            previewHtml += `<td>${student.lastName}</td>`;
+            previewHtml += `<td>${student.lastName || ''}</td>`;
             previewHtml += `<td>${student.dob || ''}</td>`;
-            previewHtml += `<td>${student.guardian}</td>`;
+            previewHtml += `<td>${student.guardian || ''}</td>`;
             previewHtml += `<td>${student.phone || ''}</td>`;
             previewHtml += `<td>${student.email || ''}</td>`;
             previewHtml += `<td>${student.notes || ''}</td>`;
@@ -2139,14 +2151,19 @@ function parseCSV(content) {
 
         previewHtml += '</tbody></table>';
         container.innerHTML = previewHtml;
-        const importCsvBtn = document.getElementById('import-csv-btn');
         if (importCsvBtn) {
             importCsvBtn.disabled = false;
-            importCsvBtn.dataset.students = JSON.stringify(students);
         }
     }
-}
 
+    // --- THIS IS THE FIX FOR PROBLEM #2 ---
+    // Set the global variable for importCSV() to read
+    window.csvPreviewData = {
+        validStudents: students,
+        errors: errors
+    };
+    // --- END OF FIX #2 ---
+}
 // This is the new function that saves imported students to Firebase
 async function importCSV() {
     const importBtn = document.getElementById('import-csv-btn');
