@@ -184,7 +184,7 @@ document.addEventListener('DOMContentLoaded', function () {
         console.log(`Welcome, ${userData.email}! Role: ${userData.role}`);
 
         applyRoleRestrictions(userData.role);
-        showMigrationButtonsIfAdmin();
+        // showMigrationButtonsIfAdmin();
         startRealtimeListeners(); // Start listening for data
     }
 
@@ -229,7 +229,7 @@ async function logout() {
 
     header.appendChild(btn);
     // ensure migration buttons visibility is recalculated
-    showMigrationButtonsIfAdmin();
+    // showMigrationButtonsIfAdmin();
 })();
 
 // 🔐 Apply UI restrictions
@@ -472,7 +472,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         // restore session if any (this should show the app after login)
         if (typeof restoreSession === 'function') restoreSession();
         // ensure migration buttons visibility if user already logged in
-        if (typeof showMigrationButtonsIfAdmin === 'function') showMigrationButtonsIfAdmin();
+        // if (typeof showMigrationButtonsIfAdmin === 'function') showMigrationButtonsIfAdmin();
 
         // If app-content is still hidden but we have a user, show it (defensive)
         try {
