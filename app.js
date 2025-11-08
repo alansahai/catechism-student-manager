@@ -626,9 +626,9 @@ function setupEventListeners() {
         csvFile.addEventListener('change', handleCSVUpload);
     }
 
-    const importCsvBtn = document.getElementById('import-csv-btn');
-    if (importCsvBtn) {
-        importCsvBtn.addEventListener('click', importStudentsFromCSV);
+    const importBtn = document.getElementById('import-csv-btn');
+    if (importBtn) {
+        importBtn.addEventListener('click', importCSV);
     }
 
     // Add this inside the setupEventListeners function
@@ -2144,6 +2144,59 @@ function parseCSV(content) {
             importCsvBtn.disabled = false;
             importCsvBtn.dataset.students = JSON.stringify(students);
         }
+    }
+}
+
+// This is the new function that saves imported students to Firebase
+async function importCSV() {
+    const importBtn = document.getElementById('import-csv-btn');
+    const oldBtnText = importBtn.innerHTML;
+    importBtn.disabled = true;
+    importBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Importing...';
+
+    if (!window.csvPreviewData || !window.csvPreviewData.validStudents) {
+        alert('No valid student data to import.');
+        importBtn.disabled = false;
+        importBtn.innerHTML = oldBtnText;
+        return;
+    }
+
+    const studentsToImport = window.csvPreviewData.validStudents;
+
+    try {
+        // 1. Update local model (so UI feels instant)
+        DATA_MODELS.students.push(...studentsToImport);
+        renderStudentsTable();
+        renderDashboard();
+        updateReportDropdown();
+
+        // 2. Persist all to Firestore
+        if (window.db && window.setDoc && window.doc) {
+            const promises = studentsToImport.map(student => {
+                // Use studentId as the unique document ID
+                const studentRef = window.doc(window.db, 'students', String(student.studentId));
+                return window.setDoc(studentRef, student);
+            });
+
+            await Promise.all(promises);
+            console.log('[importCSV] Successfully imported', studentsToImport.length, 'students to Firestore.');
+            alert('Successfully imported ' + studentsToImport.length + ' students.');
+
+        } else {
+            console.warn('[importCSV] Firestore helpers missing.');
+            throw new Error('Firestore is not connected. Cannot import.');
+        }
+    } catch (err) {
+        console.error('[importCSV] Error:', err);
+        alert('Import failed. Error: ' + err.message);
+        // Note: If this fails, the local model will be out of sync.
+        // A full page reload might be needed to get fresh data from Firebase.
+    } finally {
+        // 3. Cleanup
+        importBtn.disabled = false;
+        importBtn.innerHTML = oldBtnText;
+        document.getElementById('import-modal').style.display = 'none';
+        window.csvPreviewData = null; // Clear preview data
     }
 }
 
