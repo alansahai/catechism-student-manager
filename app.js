@@ -2165,10 +2165,10 @@ async function importCSV() {
 
     try {
         // 1. Update local model (so UI feels instant)
-        DATA_MODELS.students.push(...studentsToImport);
-        renderStudentsTable();
-        renderDashboard();
-        updateReportDropdown();
+        // DATA_MODELS.students.push(...studentsToImport);
+        // renderStudentsTable();
+        // renderDashboard();
+        // updateReportDropdown();
 
         // 2. Persist all to Firestore
         if (window.db && window.setDoc && window.doc) {
