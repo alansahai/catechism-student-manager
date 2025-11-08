@@ -2076,7 +2076,7 @@ function parseCSV(content) {
         };
 
         // Validate required fields
-        if (!student.studentId || !student.firstName || !student.lastName) {
+        if (!student.studentId || !student.firstName) {
             errors.push(`Row ${i + 1}: Missing required fields`);
             continue;
         }
