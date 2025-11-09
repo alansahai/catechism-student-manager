@@ -193,6 +193,10 @@ document.addEventListener('DOMContentLoaded', function () {
         localStorage.removeItem('currentUser');
         loginScreen.style.display = 'flex';
         appContent.style.display = 'none';
+
+        // *** ADD THESE TWO LINES ***
+        document.getElementById('login-email').value = '';
+        document.getElementById('login-password').value = '';
     }
 });
 
@@ -2376,6 +2380,24 @@ function startRealtimeListeners() {
         console.log('[realtime] sessions sync', DATA_MODELS.sessions.length);
     }, err => console.error('[realtime] sessions listener error', err));
     window.realtimeUnsubscribers.push(unsubSessions);
+
+    // *** ADD THIS ENTIRE NEW BLOCK FOR ASSESSMENTS ***
+    const qAssessments = window.query(window.collection(window.db, 'assessments'));
+    const unsubAssessments = window.onSnapshot(qAssessments, (querySnapshot) => {
+        const assessments = [];
+        querySnapshot.forEach((doc) => {
+            assessments.push({ id: doc.id, ...doc.data() });
+        });
+        DATA_MODELS.assessments = assessments;
+        console.log('[realtime] Synced assessments:', DATA_MODELS.assessments.length);
+
+        renderAssessmentsTable(); // Re-render the assessments table
+        updateReportDropdown();   // Also update the report dropdown
+    }, (err) => {
+        console.error('[realtime] Assessments listener error:', err);
+    });
+    window.realtimeUnsubscribers.push(unsubAssessments);
+    // *** END OF NEW BLOCK ***
 
     // attendance (no stable id, we'll use composite key sessionId+studentId)
     const attendanceColl = window.collection(window.db, 'attendance');

@@ -392,4 +392,60 @@ tr:hover {
         align-items: flex-start;
         gap: 15px;
     }
+
+}
+
+/* --- Add this new code to the bottom of style.css --- */
+
+/* 1. Make All Tables Scroll Horizontally
+   This is the most important fix. It stops tables
+   from breaking the page layout on small screens.
+*/
+.table-wrapper {
+    width: 100%;
+    overflow-x: auto;
+    /* Adds a horizontal scrollbar */
+    -webkit-overflow-scrolling: touch;
+    /* Smooth scrolling on iOS */
+    border: 1px solid #ddd;
+    border-radius: var(--border-radius);
+    margin: 20px 0;
+}
+
+/* 2. Fix Card Header Buttons on Mobile
+   This stacks the "Add Student" and "Import CSV" buttons
+   vertically so they don't overflow.
+*/
+@media (max-width: 768px) {
+    .card-header .btn {
+        width: 100%;
+        /* Make buttons full-width */
+        margin-bottom: 10px;
+        /* Add spacing between them */
+    }
+
+    .card-header .btn:last-child {
+        margin-bottom: 0;
+    }
+
+    /* Make the search bar full-width too */
+    .search-bar {
+        width: 100%;
+    }
+}
+
+/* 3. Improve Modal Sizing on Small Screens
+   Makes modals less wide on very small phones.
+*/
+@media (max-width: 480px) {
+    .modal-content {
+        width: 95%;
+        /* Use more of the screen */
+        max-height: 95vh;
+    }
+
+    .logo h1 {
+        font-size: 1.5rem;
+        /* Slightly smaller header text */
+    }
 }
