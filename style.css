@@ -449,3 +449,124 @@ tr:hover {
         /* Slightly smaller header text */
     }
 }
+
+/* --- Add to the bottom of style.css --- */
+
+/* Styles for the new "Generate Reports" tab */
+#generate-reports .report-section.card {
+    padding: 20px;
+    border: 1px solid var(--light);
+    margin-top: 20px;
+    background: #fdfdfd;
+}
+
+#generate-reports .card-header {
+    padding: 0;
+    border-bottom: none;
+    margin-bottom: 15px;
+}
+
+#generate-reports h4 {
+    color: var(--primary);
+    margin: 0;
+}
+
+#generate-reports p {
+    margin-bottom: 20px;
+    font-size: 0.95rem;
+    color: #555;
+}
+
+.report-container {
+    /* Container for the generated report content */
+    width: 100%;
+}
+
+/* Used for stats in the overall report */
+.report-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+.report-stat-card {
+    background: var(--light);
+    padding: 15px;
+    border-radius: var(--border-radius);
+    text-align: center;
+    border: 1px solid #ddd;
+}
+
+.report-stat-card h6 {
+    font-size: 0.9rem;
+    color: var(--secondary);
+    margin-bottom: 5px;
+    text-transform: uppercase;
+}
+
+.report-stat-card p {
+    font-size: 1.8rem;
+    font-weight: 600;
+    color: var(--primary);
+    margin: 0;
+}
+
+/* Used for the day-wise report */
+.attendance-list-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+}
+
+.attendance-list h5 {
+    font-size: 1.2rem;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.attendance-list.present h5 {
+    color: var(--success);
+    border-bottom: 2px solid var(--success);
+}
+
+.attendance-list.present h5 .icon {
+    color: var(--success);
+}
+
+.attendance-list.absent h5 {
+    color: var(--danger);
+    border-bottom: 2px solid var(--danger);
+}
+
+.attendance-list.absent h5 .icon {
+    color: var(--danger);
+}
+
+.attendance-list ul {
+    list-style: none;
+    padding-left: 0;
+    height: 300px;
+    overflow-y: auto;
+    border: 1px solid #eee;
+    border-radius: var(--border-radius);
+}
+
+.attendance-list li {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eee;
+    font-size: 0.95rem;
+}
+
+.attendance-list li:last-child {
+    border-bottom: none;
+}
+
+.attendance-list li span {
+    font-size: 0.85rem;
+    color: #777;
+    margin-left: 5px;
+}

@@ -229,22 +229,24 @@
                         <div class="tabs">
                             <div class="tab active" data-tab-target="#session-list">Sessions</div>
                             <div class="tab" data-tab-target="#take-attendance">Take Attendance</div>
+                            <div class="tab" data-tab-target="#generate-reports">Generate Reports</div>
                         </div>
 
                         <div id="session-list" class="tab-content active">
-                            <table id="sessions-table">
-                                <thead>
-                                    <tr>
-                                        <th>Date</th>
-                                        <th>Status</th>
-                                        <th>Reason</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <!-- Session rows will be populated here -->
-                                </tbody>
-                            </table>
+                            <div class="table-wrapper">
+                                <table id="sessions-table" class="data-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Status</th>
+                                            <th>Reason</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
 
                         <div id="take-attendance" class="tab-content">
@@ -252,12 +254,44 @@
                                 <label for="session-date">Select Session Date</label>
                                 <select id="session-date">
                                     <option value="">-- Select a session --</option>
-                                    <!-- Options will be populated here -->
                                 </select>
                             </div>
-
                             <div id="attendance-form-container">
-                                <p>Select a session to take attendance</p>
+                                <p>Please select a session to take attendance.</p>
+                            </div>
+                        </div>
+
+                        <div id="generate-reports" class="tab-content">
+
+                            <div class="report-section card">
+                                <div class="card-header">
+                                    <h4>Overall Attendance Report</h4>
+                                    <button class="btn btn-primary" id="generate-overall-report-btn">
+                                        <i class="fas fa-chart-pie"></i> Generate
+                                    </button>
+                                </div>
+                                <p>A summary of attendance for all students across all "Available" sessions to date.</p>
+                                <div id="overall-report-container" class="report-container">
+                                </div>
+                            </div>
+
+                            <div class="report-section card">
+                                <div class="card-header">
+                                    <h4>Day-wise Attendance Report</h4>
+                                    <button class="btn btn-primary" id="print-daywise-report-btn" style="display:none;">
+                                        <i class="fas fa-print"></i> Print Report
+                                    </button>
+                                </div>
+                                <p>Select a specific session to generate a list of present and absent students.</p>
+                                <div class="form-group">
+                                    <label for="report-session-date">Select Session Date</label>
+                                    <select id="report-session-date">
+                                        <option value="">-- Select a session --</option>
+                                    </select>
+                                </div>
+                                <div id="daywise-report-container" class="report-container">
+                                    <p>Please select a session to view the report.</p>
+                                </div>
                             </div>
                         </div>
                     </div>

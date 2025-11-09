@@ -703,6 +703,26 @@ function setupEventListeners() {
             }
         });
     }
+
+    // *** ADD THESE NEW LISTENERS FOR THE REPORTS ***
+    const overallReportBtn = document.getElementById('generate-overall-report-btn');
+    if (overallReportBtn) {
+        overallReportBtn.addEventListener('click', generateOverallAttendanceReport);
+    }
+
+    const reportSessionSelect = document.getElementById('report-session-date');
+    if (reportSessionSelect) {
+        reportSessionSelect.addEventListener('change', generateDaywiseAttendanceReport);
+    }
+
+    const printDaywiseBtn = document.getElementById('print-daywise-report-btn');
+    if (printDaywiseBtn) {
+        printDaywiseBtn.addEventListener('click', () => {
+            // We'll create this printReport helper function next
+            printReport('daywise-report-container', 'Day-wise Attendance Report');
+        });
+    }
+    // *** END OF NEW BLOCK ***
 }
 
 // Data Management Functions
@@ -978,6 +998,23 @@ function renderSessionsTable() {
 
         // Debug: log the select options
         console.log('[renderSessionsTable] populated session-select options count:', sessionSelect.options.length - 1);
+    }
+
+    // *** ADD THIS NEW BLOCK TO POPULATE THE REPORT DROPDOWN ***
+    const reportSessionSelect = document.getElementById('report-session-date');
+    if (reportSessionSelect) {
+        const currentVal = reportSessionSelect.value; // Preserve selection if possible
+        reportSessionSelect.innerHTML = '<option value="">-- Select a session --</option>';
+
+        sortedSessions.forEach(session => {
+            const option = document.createElement('option');
+            option.value = session.id;
+            // Show date + status, e.g., "Oct 26, 2025 (Class Held)"
+            const statusText = session.status === 'Available' ? 'Class Held' : 'No Class';
+            option.textContent = `${formatDate(session.date)} (${statusText})`;
+            reportSessionSelect.appendChild(option);
+        });
+        reportSessionSelect.value = currentVal; // Restore selection
     }
 
     // Add event listeners
@@ -2474,3 +2511,294 @@ function startRealtimeListeners() {
     window.realtimeUnsubscribers.push(unsubScores);
 }
 
+// --- ADD ALL OF THIS TO THE END OF app.js ---
+
+/**
+ * Generates Report 1: Overall Attendance Summary
+ */
+function generateOverallAttendanceReport() {
+    const container = document.getElementById('overall-report-container');
+    if (!container) return;
+
+    const availableSessions = DATA_MODELS.sessions.filter(s => s.status === 'Available');
+    const totalSessions = availableSessions.length;
+    const allStudents = DATA_MODELS.students;
+
+    if (totalSessions === 0 || allStudents.length === 0) {
+        container.innerHTML = '<p>No student or session data available to generate a report.</p>';
+        return;
+    }
+
+    let totalAttendancePercentage = 0;
+    let tableHtml = `
+        <table class="data-table">
+            <thead>
+                <tr>
+                    <th>Student ID</th>
+                    <th>Name</th>
+                    <th>Classes Attended</th>
+                    <th>Total Classes</th>
+                    <th>Attendance %</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    // Sort students by name
+    // Replace with this line:
+    allStudents.sort((a, b) => a.studentId.localeCompare(b.studentId, undefined, { numeric: true }));
+
+    allStudents.forEach(student => {
+        // Find all "Present" or "Late" records for this student
+        const presentCount = DATA_MODELS.attendance.filter(a => {
+            return a.studentId === student.studentId &&
+                (a.status === 'Present' || a.status === 'Late') &&
+                availableSessions.some(s => s.id === a.sessionId); // Ensure it was an 'Available' session
+        }).length;
+
+        const percentage = totalSessions > 0 ? Math.round((presentCount / totalSessions) * 100) : 0;
+        totalAttendancePercentage += percentage;
+
+        tableHtml += `
+            <tr>
+                <td>${student.studentId}</td>
+                <td>${student.firstName} ${student.lastName}</td>
+                <td>${presentCount}</td>
+                <td>${totalSessions}</td>
+                <td>${percentage}%</td>
+            </tr>
+        `;
+    });
+
+    tableHtml += '</tbody></table>';
+
+    const classAverage = allStudents.length > 0 ? Math.round(totalAttendancePercentage / allStudents.length) : 0;
+
+    // Add stats at the top
+    let statsHtml = `
+        <div class="report-stats-grid">
+            <div class="report-stat-card">
+                <h6>Total Students</h6>
+                <p>${allStudents.length}</p>
+            </div>
+            <div class="report-stat-card">
+                <h6>Total Sessions Held</h6>
+                <p>${totalSessions}</p>
+            </div>
+            <div class="report-stat-card">
+                <h6>Class Average</h6>
+                <p>${classAverage}%</p>
+            </div>
+        </div>
+        <button class="btn btn-primary no-print" onclick="printReport('overall-report-container', 'Overall Attendance Report')">
+            <i class="fas fa-print"></i> Print Report
+        </button>
+        <hr style="margin: 20px 0;">
+    `;
+
+    container.innerHTML = statsHtml + tableHtml;
+}
+
+/**
+ * Generates Report 2: Day-wise Attendance Report
+ */
+function generateDaywiseAttendanceReport() {
+    const container = document.getElementById('daywise-report-container');
+    const select = document.getElementById('report-session-date');
+    const printBtn = document.getElementById('print-daywise-report-btn');
+    if (!container || !select || !printBtn) return;
+
+    const sessionId = select.value;
+    if (!sessionId) {
+        container.innerHTML = '<p>Please select a session to view the report.</p>';
+        printBtn.style.display = 'none';
+        return;
+    }
+
+    const session = DATA_MODELS.sessions.find(s => s.id === sessionId);
+    if (!session) {
+        container.innerHTML = '<p>Error: Session not found.</p>';
+        printBtn.style.display = 'none';
+        return;
+    }
+
+    // Handle "No Class" sessions
+    if (session.status === 'NoClass') {
+        container.innerHTML = `
+            <h5>Report for ${formatDate(session.date)}</h5>
+            <p><strong>Status: No Class</strong></p>
+            <p>Reason: ${session.noClassReason || 'Not specified'}</p>
+        `;
+        printBtn.style.display = 'block';
+        return;
+    }
+
+    // Session was "Available", so we build the present/absent lists
+    const allStudents = [...DATA_MODELS.students].sort((a, b) =>
+        a.lastName.localeCompare(b.lastName) || a.firstName.localeCompare(b.firstName)
+    );
+
+    const presentList = [];
+    const absentList = [];
+    const otherList = []; // For Late, Excused
+
+    allStudents.forEach(student => {
+        const attendance = DATA_MODELS.attendance.find(a =>
+            a.sessionId === sessionId && a.studentId === student.studentId
+        );
+
+        const status = attendance ? attendance.status : 'Absent'; // Default to Absent if no record
+        const studentName = `${student.firstName} ${student.lastName} <span>(${student.studentId})</span>`;
+
+        switch (status) {
+            case 'Present':
+                presentList.push(`<li>${studentName}</li>`);
+                break;
+            case 'Absent':
+                absentList.push(`<li>${studentName}</li>`);
+                break;
+            default: // 'Late', 'Excused', etc.
+                otherList.push(`<li>${studentName} <strong>(${status})</strong></li>`);
+                break;
+        }
+    });
+
+    // Combine 'Late' and 'Excused' with the 'Present' list for simplicity
+    presentList.push(...otherList);
+
+    let html = `
+        <h5>Report for ${formatDate(session.date)}</h5>
+        
+        <div class="print-wrapper-daywise">
+
+            <div class="report-stats-grid" style="margin-bottom: 20px;">
+                 <div class="report-stat-card">
+                    <h6>Present</h6>
+                    <p>${presentList.length}</p>
+                </div>
+                <div class="report-stat-card">
+                    <h6>Absent</h6>
+                    <p>${absentList.length}</p>
+                </div>
+            </div>
+            
+            <div class="attendance-list-container">
+                <div class="attendance-list present">
+                    <h5><span class="icon"><i class="fas fa-check-circle"></i></span> Present / Other</h5>
+                    <ul>${presentList.length > 0 ? presentList.join('') : '<li>No students marked present.</li>'}</ul>
+                </div>
+                <div class="attendance-list absent">
+                    <h5><span class="icon"><i class="fas fa-times-circle"></i></span> Absent</h5>
+                    <ul>${absentList.length > 0 ? absentList.join('') : '<li>No students marked absent.</li>'}</ul>
+                </div>
+            </div>
+
+        </div> 
+        `;
+
+    container.innerHTML = html;
+    printBtn.style.display = 'block';
+}
+
+/**
+ * Helper function to print the content of a specific container.
+ * This re-uses the print styles you already have.
+ */
+function printReport(containerId, reportTitle) {
+    const reportContainer = document.getElementById(containerId);
+    if (!reportContainer) return;
+
+    // Create a new window or iframe for printing
+    const printWindow = window.open('', '_blank', 'height=800,width=1000');
+
+    // Get all stylesheet links from the main page
+    const stylesheets = Array.from(document.querySelectorAll('link[rel="stylesheet"]'))
+        .map(link => link.href)
+        .map(href => `<link rel="stylesheet" href="${href}">`)
+        .join('');
+
+    // Get the base print styles from your CSS
+    // This is inside the printReport function in app.js
+
+    // Get the base print styles from your CSS
+    // Get the base print styles from your CSS
+    const printStyles = `
+        <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 20px; }
+            .no-print { display: none !important; }
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { padding: 10px; border: 1px solid #ddd; text-align: left; }
+            th { background-color: #f5f7fa; }
+            
+            /* --- ADD THIS NEW BLOCK --- */
+            /* Wrapper to force stats and lists to stay together */
+            .print-wrapper-daywise {
+                page-break-inside: avoid !important;
+            }
+            /* --- END OF NEW BLOCK --- */
+            
+            /* --- FIX FOR STATS GRID --- */
+            .report-stats-grid { 
+                display: grid !important; 
+                grid-template-columns: 1fr 1fr 1fr !important;
+                gap: 15px !important; 
+                page-break-inside: avoid !important;
+                page-break-after: avoid !important;  /* <-- ADD THIS LINE */
+            }
+            .report-stat-card { 
+                border: 1px solid #ccc; 
+                padding: 15px; 
+                text-align: center; 
+                page-break-inside: avoid !important;
+            }
+
+            /* --- FIX FOR ATTENDANCE LISTS (Flexbox approach) --- */
+            .attendance-list-container { 
+                display: flex !important;
+                flex-direction: row !important;
+                width: 100% !important;
+                gap: 20px !important; 
+                page-break-inside: avoid !important; 
+                page-break-before: avoid !important; /* <-- ADD THIS LINE */
+            }
+            .attendance-list {
+                width: 50% !important;
+                page-break-inside: avoid !important;
+                flex-shrink: 0;
+                box-sizing: border-box !important; 
+            }
+
+            /* --- Remove scroll from lists --- */
+            .attendance-list ul {
+                height: auto !important;
+                max-height: none !important;
+                overflow-y: visible !important;
+                border: 1px solid #ccc !important;
+            }
+
+            h1 { font-size: 1.5rem; }
+            h5 { font-size: 1.1rem; }
+            ul { list-style: none; padding: 0; }
+            li { padding: 5px; border-bottom: 1px solid #eee; }
+        </style>
+    `;
+
+    // ... the rest of the function continues...
+
+    printWindow.document.write('<html><head><title>Print Report</title>');
+    printWindow.document.write(stylesheets); // Load external stylesheets
+    printWindow.document.write(printStyles);  // Apply print-specific overrides
+    printWindow.document.write('</head><body>');
+    printWindow.document.write(`<h1>${reportTitle}</h1>`);
+    printWindow.document.write(`<p>Generated on: ${new Date().toLocaleString()}</p><hr>`);
+    printWindow.document.write(reportContainer.innerHTML);
+    printWindow.document.write('</body></html>');
+
+    printWindow.document.close();
+
+    // Use a slight delay to ensure stylesheets load
+    setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+    }, 500);
+}
